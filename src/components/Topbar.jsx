@@ -12,7 +12,11 @@ const pathTitleMap = [
     { match: "/teams/worship", title: "Worship Teams" },
     { match: "/teams/other", title: "Other Teams" },
     { match: "/comcell/all", title: "Comcell Groups" },
-    { match: "/comcell/my", title: "My Comcell" }
+    { match: "/comcell/my", title: "My Comcell" },
+    //{ match: "/worship/schedule", title: "Worship Schedule" },
+    { match: "/worship/video/collections", title: "Video Collections" },
+    { match: "/worship/video/new", title: "New Video" },
+    { match: "/worship/giving", title: "Giving" },
 
 ];
 

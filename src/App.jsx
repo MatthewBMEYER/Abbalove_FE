@@ -18,6 +18,9 @@ import Dashboard from './pages/Dashboard';
 // import Schedule from './pages/worships/Schedule';
 // import Collections from './pages/worships/Collections';
 import Giving from './pages/worships/Giving';
+// videos collections
+import VideoCollection from './pages/worships/videos/videosCollection';
+import NewVideo from './pages/worships/videos/newVideo';
 // users
 import Users from './pages/users/UserManagement';
 import UserDetail from './pages/users/UserDetail';
@@ -33,10 +36,6 @@ import MemberDetail from './pages/teams/MemberDetail';
 import AllComsell from './pages/comsell/AllComcell';
 import MyComsell from './pages/comsell/MyComcell';
 import ComcellGroupDetail from './pages/comsell/ComcellGroupDetail';
-
-
-
-
 
 
 
@@ -78,6 +77,11 @@ function App() {
           {/* <Route path="worship/schedule" element={<Schedule />} />
           <Route path="worship/collections" element={<Collections />} /> */}
           <Route path="worship/giving" element={<Giving />} />
+
+          {/* Videos */}
+          <Route path="worship/video/collections" element={<VideoCollection />} />
+          <Route path="worship/video/new" element={<NewVideo />} />
+          <Route path="worship/video/manage" element={<VideoCollection />} />
 
           {/* User Management */}
           <Route path="users/management" element={<Users />} />

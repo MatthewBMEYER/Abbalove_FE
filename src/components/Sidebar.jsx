@@ -48,8 +48,8 @@ const menuConfig = {
                 path: "/worship/schedule",
             },
             video: {
-                label: 'Collections',
-                path: "/worship/collections",
+                label: 'Video Collections',
+                path: "/worship/video/collections",
             },
             giving: {
                 label: 'Giving',
