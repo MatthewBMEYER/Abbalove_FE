@@ -91,7 +91,7 @@ const NewVideo = () => {
                 embed_url: embedUrl,
                 thumbnail_url: thumbnailUrl,
                 description,
-                //event_date: eventDate ? dayjs(eventDate).format("YYYY-MM-DD") : null,
+                event_date: eventDate ? dayjs(eventDate).format("YYYY-MM-DD") : null,
                 tags: tags.map((t) => (typeof t === "string" ? t : t.name)),
                 createBy: user?.id,
             });
@@ -175,12 +175,12 @@ const NewVideo = () => {
                     />
 
                     {/* Event Date */}
-                    {/* <DatePicker
+                    <DatePicker
                         label="Event Date"
                         value={eventDate}
                         onChange={(newValue) => setEventDate(newValue)}
                         sx={{ width: "100%" }}
-                    /> */}
+                    />
 
                     {/* Tags */}
                     <Autocomplete

@@ -5,6 +5,7 @@ import {
     Typography,
     TextField,
     Chip,
+    Tooltip,
     CircularProgress,
     InputAdornment,
     IconButton,
@@ -124,24 +125,28 @@ const VideoCollection = () => {
 
                     {isAdmin && (
                         <Stack direction="row" spacing={1}>
-                            <IconButton
-                                onClick={handleUploadClick}
-                                sx={{
-                                    bgcolor: "action.hover",
-                                    "&:hover": { bgcolor: "action.selected" },
-                                }}
-                            >
-                                <AddIcon />
-                            </IconButton>
-                            <IconButton
-                                onClick={handleManageClick}
-                                sx={{
-                                    bgcolor: "action.hover",
-                                    "&:hover": { bgcolor: "action.selected" },
-                                }}
-                            >
-                                <SettingsIcon />
-                            </IconButton>
+                            <Tooltip title="Upload" placement="bottom">
+                                <IconButton
+                                    onClick={handleUploadClick}
+                                    sx={{
+                                        bgcolor: "action.hover",
+                                        "&:hover": { bgcolor: "action.selected" },
+                                    }}
+                                >
+                                    <AddIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Manage" placement="bottom">
+                                <IconButton
+                                    onClick={handleManageClick}
+                                    sx={{
+                                        bgcolor: "action.hover",
+                                        "&:hover": { bgcolor: "action.selected" },
+                                    }}
+                                >
+                                    <SettingsIcon />
+                                </IconButton>
+                            </Tooltip>
                         </Stack>
                     )}
                 </Stack>
@@ -290,48 +295,56 @@ const VideoCollection = () => {
                         No videos found
                     </Typography>
                 ) : (
-                    // ======= Default Grid View =======
-                    <Grid container spacing={2}>
+                    // ======= Default Grid View - YouTube Style Fluid Layout =======
+                    <Box
+                        sx={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+                            gap: 2, // same as spacing={2}
+                        }}
+                    >
                         {videos.map((video) => (
-                            <Grid item xs={12} sm={6} md={4} lg={3} key={video.id}>
+                            <Box
+                                key={video.id}
+                                sx={{
+                                    cursor: "pointer",
+                                    width: "100%",
+                                    overflow: "hidden",
+                                    "&:hover .thumbnail": {
+                                        transform: "scale(1.005)",
+                                        borderRadius: 0,
+                                    },
+                                }}
+                                onClick={() => handleCardClick(video.id)}
+                            >
+                                {/* Thumbnail - Fixed Aspect Ratio */}
                                 <Box
-                                    onClick={() => handleCardClick(video.id)}
+                                    className="thumbnail"
                                     sx={{
-                                        cursor: "pointer",
-                                        "&:hover .thumbnail": {
-                                            transform: "scale(1.005)",
-                                            borderRadius: 0
-                                        },
+                                        width: "100%",
+                                        aspectRatio: "16/9",
+                                        borderRadius: 2,
+                                        overflow: "hidden",
+                                        bgcolor: "action.hover",
+                                        transition: "0.2s",
                                     }}
                                 >
-                                    {/* Thumbnail */}
-                                    <Box
-                                        className="thumbnail"
-                                        sx={{
-                                            width: "100%",
-                                            aspectRatio: "16/9",
-                                            borderRadius: 2,
-                                            overflow: "hidden",
-                                            bgcolor: "action.hover",
-                                            transition: "0.2s",
-                                        }}
-                                    >
-                                        <img
-                                            src={
-                                                video.thumbnail_url ||
-                                                `https://img.youtube.com/vi/${extractVideoId(
-                                                    video.youtube_url
-                                                )}/hqdefault.jpg`
-                                            }
-                                            alt={video.title}
-                                            width="100%"
-                                            height="100%"
-                                            style={{ objectFit: "cover" }}
-                                        />
-                                    </Box>
+                                    <img
+                                        src={
+                                            video.thumbnail_url ||
+                                            `https://img.youtube.com/vi/${extractVideoId(video.youtube_url)}/hqdefault.jpg`
+                                        }
+                                        alt={video.title}
+                                        width="100%"
+                                        height="100%"
+                                        style={{ objectFit: "cover" }}
+                                    />
+                                </Box>
 
-                                    {/* Video Info */}
-                                    <Box mt={1.5}>
+                                {/* Video Info */}
+                                <Box mt={1.5}>
+                                    {/* Title - Dynamic height but still max 2 lines */}
+                                    <Tooltip title={video.title} placement="top" arrow>
                                         <Typography
                                             variant="body2"
                                             fontWeight={600}
@@ -341,23 +354,44 @@ const VideoCollection = () => {
                                                 WebkitLineClamp: 2,
                                                 WebkitBoxOrient: "vertical",
                                                 overflow: "hidden",
-                                                lineHeight: 1.4,
-                                                mb: 0.5,
+                                                lineHeight: "20px",
+                                                wordBreak: "break-word",
+                                                overflowWrap: "break-word",
+                                                mb: 0.3, // smaller, so spacing stays nice for both 1-line and 2-line
+                                                minHeight: "20px", // ensures consistent vertical rhythm
                                             }}
                                         >
                                             {video.title}
                                         </Typography>
+                                    </Tooltip>
 
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            sx={{ display: "block", mb: 0.5 }}
-                                        >
-                                            {timeAgo(video.createDate)}
-                                        </Typography>
+                                    {/* Date */}
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{
+                                            display: "block",
+                                            mb: 0.5,
+                                            lineHeight: "18px",
+                                            whiteSpace: "nowrap",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                        }}
+                                    >
+                                        {timeAgo(video.createDate)}
+                                    </Typography>
 
+                                    {/* Tags */}
+                                    <Box
+                                        sx={{
+                                            height: "24px",
+                                            overflow: "hidden",
+                                            display: "flex",
+                                            gap: 0.5,
+                                        }}
+                                    >
                                         {video.tags && video.tags.length > 0 && (
-                                            <Box display="flex" gap={0.5} flexWrap="wrap">
+                                            <>
                                                 {video.tags.slice(0, 2).map((tag) => (
                                                     <Chip
                                                         key={tag.id}
@@ -367,16 +401,24 @@ const VideoCollection = () => {
                                                             height: "20px",
                                                             fontSize: "0.7rem",
                                                             bgcolor: "action.hover",
+                                                            maxWidth: "calc(50% - 4px)",
+                                                            "& .MuiChip-label": {
+                                                                px: 1,
+                                                                overflow: "hidden",
+                                                                textOverflow: "ellipsis",
+                                                                whiteSpace: "nowrap",
+                                                            },
                                                         }}
                                                     />
                                                 ))}
-                                            </Box>
+                                            </>
                                         )}
                                     </Box>
                                 </Box>
-                            </Grid>
+                            </Box>
                         ))}
-                    </Grid>
+                    </Box>
+
                 )}
             </Box>
         </Box>

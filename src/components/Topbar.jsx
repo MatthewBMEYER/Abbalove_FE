@@ -17,6 +17,7 @@ const pathTitleMap = [
     { match: "/worship/video/collections", title: "Video Collections" },
     { match: "/worship/video/new", title: "New Video" },
     { match: "/worship/giving", title: "Giving" },
+    { match: "/worship/video/manage", title: "Video Management" },
 
 ];
 
