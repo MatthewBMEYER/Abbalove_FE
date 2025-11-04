@@ -19,21 +19,37 @@ import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../../store/userStore";
 import api from "../../../api";
 
+// Fixed tags - no need to fetch from API
+const FIXED_TAGS = [
+    "Sunday Service",
+    "Bible Study",
+    "Youth Ministry",
+    "Prayer Meeting",
+    "Worship Night",
+    "Testimony",
+    "Special Event",
+];
+
 const VideoCollection = () => {
     const [videos, setVideos] = useState([]);
     const [search, setSearch] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(false);
+    const [selectedTag, setSelectedTag] = useState(null);
     const navigate = useNavigate();
     const { user } = useUserStore();
 
     const isAdmin = user?.roleName === "admin" || user?.roleName === "master";
     const isSearchActive = searchQuery.trim() !== "";
 
-    const fetchVideos = async (query = "") => {
+    const fetchVideos = async (query = "", tagName = null) => {
         try {
             setLoading(true);
-            const res = await api.get(`/videos?search=${query}`);
+            let url = `/videos?search=${query}`;
+            if (tagName) {
+                url += `&tag=${encodeURIComponent(tagName)}`;
+            }
+            const res = await api.get(url);
             if (res.data.success) {
                 setVideos(res.data.data);
             } else {
@@ -54,14 +70,21 @@ const VideoCollection = () => {
     const handleSearch = async (e) => {
         if (e.key === "Enter") {
             setSearchQuery(search);
-            await fetchVideos(search);
+            await fetchVideos(search, selectedTag);
         }
     };
 
     const handleClearSearch = () => {
         setSearch("");
         setSearchQuery("");
-        fetchVideos("");
+        setSelectedTag(null);
+        fetchVideos("", null);
+    };
+
+    const handleTagClick = (tagName) => {
+        const newSelectedTag = selectedTag === tagName ? null : tagName;
+        setSelectedTag(newSelectedTag);
+        fetchVideos(searchQuery, newSelectedTag);
     };
 
     const handleCardClick = (id) => navigate(`/worship/video/${id}`);
@@ -74,8 +97,6 @@ const VideoCollection = () => {
             <Box
                 sx={{
                     bgcolor: "background.paper",
-                    // borderBottom: 1,
-                    // borderColor: "divider",
                     px: 3,
                     py: 1.5,
                     position: "sticky",
@@ -150,6 +171,64 @@ const VideoCollection = () => {
                         </Stack>
                     )}
                 </Stack>
+            </Box>
+
+            {/* Tag Filters */}
+            <Box
+                sx={{
+                    bgcolor: "background.paper",
+                    px: 3,
+                    py: 1.5,
+                    zIndex: 9,
+                    overflowX: "auto",
+                    "&::-webkit-scrollbar": {
+                        height: "6px",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                        bgcolor: "action.hover",
+                        borderRadius: "3px",
+                    },
+                }}
+            >
+                <Box
+                    sx={{
+                        display: "flex",
+                        gap: 1,
+                        minWidth: "min-content",
+                    }}
+                >
+                    <Chip
+                        label="All"
+                        onClick={() => handleTagClick(null)}
+                        sx={{
+                            bgcolor: selectedTag === null ? "primary.main" : "action.hover",
+                            color: selectedTag === null ? "primary.contrastText" : "text.primary",
+                            fontWeight: selectedTag === null ? 600 : 400,
+                            "&:hover": {
+                                bgcolor: selectedTag === null ? "primary.dark" : "action.selected",
+                            },
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                        }}
+                    />
+                    {FIXED_TAGS.map((tagName) => (
+                        <Chip
+                            key={tagName}
+                            label={tagName}
+                            onClick={() => handleTagClick(tagName)}
+                            sx={{
+                                bgcolor: selectedTag === tagName ? "primary.main" : "action.hover",
+                                color: selectedTag === tagName ? "primary.contrastText" : "text.primary",
+                                fontWeight: selectedTag === tagName ? 600 : 400,
+                                "&:hover": {
+                                    bgcolor: selectedTag === tagName ? "primary.dark" : "action.selected",
+                                },
+                                cursor: "pointer",
+                                transition: "all 0.2s",
+                            }}
+                        />
+                    ))}
+                </Box>
             </Box>
 
             {/* Content */}
@@ -300,7 +379,7 @@ const VideoCollection = () => {
                         sx={{
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
-                            gap: 2, // same as spacing={2}
+                            gap: 2,
                         }}
                     >
                         {videos.map((video) => (
@@ -357,8 +436,8 @@ const VideoCollection = () => {
                                                 lineHeight: "20px",
                                                 wordBreak: "break-word",
                                                 overflowWrap: "break-word",
-                                                mb: 0.3, // smaller, so spacing stays nice for both 1-line and 2-line
-                                                minHeight: "20px", // ensures consistent vertical rhythm
+                                                mb: 0.3,
+                                                minHeight: "20px",
                                             }}
                                         >
                                             {video.title}
@@ -418,7 +497,6 @@ const VideoCollection = () => {
                             </Box>
                         ))}
                     </Box>
-
                 )}
             </Box>
         </Box>

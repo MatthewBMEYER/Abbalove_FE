@@ -33,6 +33,7 @@ function AppInitializer() {
             email: u.email,
             roleId: u.roleId,
             roleName: u.roleName,
+            loaded: true
           });
 
           console.log("Profile fetched:", u);

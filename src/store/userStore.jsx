@@ -8,12 +8,13 @@ export const useUserStore = create((set) => ({
         email: null,
         roleId: null,
         roleName: null,
+        loaded: false
     },
 
     setUser: (data) => set({ user: data }),
 
     clearUser: () => set({
-        user: { id: null, name: null, email: null, roleId: null, roleName: null }
+        user: { id: null, name: null, email: null, roleId: null, roleName: null, loaded: false }
     }),
 }));
 

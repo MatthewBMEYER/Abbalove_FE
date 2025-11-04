@@ -14,6 +14,8 @@ import {
     DialogActions,
     TextField,
     Autocomplete,
+    Snackbar,
+    Alert,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditIcon from "@mui/icons-material/Edit";
@@ -33,6 +35,7 @@ const VideoDetail = () => {
     const [editMode, setEditMode] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
 
     // Edit form state
     const [editForm, setEditForm] = useState({
@@ -46,6 +49,17 @@ const VideoDetail = () => {
     const [availableTags, setAvailableTags] = useState([]);
 
     const isAdmin = user?.roleName === "admin" || user?.roleName === "master";
+
+    // Extract YouTube ID
+    const extractVideoId = (url) => {
+        try {
+            const regExp = /(?:v=|\/)([0-9A-Za-z_-]{11}).*/;
+            const match = url.match(regExp);
+            return match ? match[1] : null;
+        } catch {
+            return null;
+        }
+    };
 
     // Fetch video details
     const fetchVideo = async () => {
@@ -63,6 +77,7 @@ const VideoDetail = () => {
             }
         } catch (err) {
             console.error("Fetch video error:", err);
+            setSnackbar({ open: true, message: "Failed to load video", severity: "error" });
         } finally {
             setLoading(false);
         }
@@ -71,7 +86,7 @@ const VideoDetail = () => {
     // Fetch available tags
     const fetchTags = async () => {
         try {
-            const res = await api.get("/tags");
+            const res = await api.get("/videos/tags/all");
             if (res.data.success) {
                 setAvailableTags(res.data.data);
             }
@@ -103,20 +118,50 @@ const VideoDetail = () => {
 
     // Save changes
     const handleSave = async () => {
+        if (!editForm.title || !editForm.youtube_url) {
+            setSnackbar({ open: true, message: "Title and YouTube URL are required!", severity: "warning" });
+            return;
+        }
+
+        const videoId = extractVideoId(editForm.youtube_url);
+        if (!videoId) {
+            setSnackbar({ open: true, message: "Invalid YouTube URL!", severity: "error" });
+            return;
+        }
+
         try {
             setSaving(true);
+
+            // Prepare tags - handle both string tags and tag objects
+            const tagNames = editForm.tags.map((tag) =>
+                typeof tag === 'string' ? tag : tag.name
+            );
+
             const res = await api.put(`/videos/${id}`, {
                 title: editForm.title,
                 description: editForm.description,
                 youtube_url: editForm.youtube_url,
-                tag_ids: editForm.tags.map((tag) => tag.id),
+                embed_url: `https://www.youtube.com/embed/${videoId}`,
+                thumbnail_url: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+                tags: tagNames,
+                updateBy: user?.id,
             });
+
             if (res.data.success) {
-                setVideo(res.data.data);
+                fetchVideo(); // Refresh the video data - added parentheses
+                fetchTags(); // Refresh the available tags - added parentheses
                 setEditMode(false);
+                setSnackbar({ open: true, message: "Video updated successfully!", severity: "success" });
+            } else {
+                throw new Error(res.data.message || "Update failed");
             }
         } catch (err) {
             console.error("Save video error:", err);
+            setSnackbar({
+                open: true,
+                message: err.response?.data?.message || "Failed to update video",
+                severity: "error"
+            });
         } finally {
             setSaving(false);
         }
@@ -127,10 +172,12 @@ const VideoDetail = () => {
         try {
             const res = await api.delete(`/videos/${id}`);
             if (res.data.success) {
-                navigate("/worship/video/manage");
+                setSnackbar({ open: true, message: "Video deleted successfully", severity: "success" });
+                setTimeout(() => navigate("/worship/video/collections"), 1000);
             }
         } catch (err) {
             console.error("Delete video error:", err);
+            setSnackbar({ open: true, message: "Failed to delete video", severity: "error" });
         }
         setDeleteDialog(false);
     };
@@ -173,6 +220,8 @@ const VideoDetail = () => {
                     position: "sticky",
                     top: 0,
                     zIndex: 10,
+                    borderBottom: 1,
+                    borderColor: "divider",
                 }}
             >
                 <Stack direction="row" alignItems="center" spacing={2}>
@@ -315,30 +364,40 @@ const VideoDetail = () => {
 
                                 <Autocomplete
                                     multiple
+                                    freeSolo
                                     options={availableTags}
-                                    getOptionLabel={(option) => option.name}
+                                    getOptionLabel={(option) => (typeof option === "string" ? option : option.name)}
                                     value={editForm.tags}
                                     onChange={(e, newValue) =>
                                         setEditForm({ ...editForm, tags: newValue })
                                     }
-                                    renderInput={(params) => (
-                                        <TextField {...params} label="Tags" placeholder="Select tags" />
-                                    )}
                                     renderTags={(value, getTagProps) =>
                                         value.map((option, index) => (
                                             <Chip
-                                                label={option.name}
+                                                variant="outlined"
+                                                label={typeof option === "string" ? option : option.name}
                                                 {...getTagProps({ index })}
-                                                size="small"
+                                                key={index}
                                             />
                                         ))
                                     }
+                                    renderInput={(params) => (
+                                        <TextField {...params} label="Tags" placeholder="Add or select tags" />
+                                    )}
                                 />
                             </Stack>
                         ) : (
                             // View Mode
                             <Stack spacing={2}>
-                                <Typography variant="h5" fontWeight={600}>
+                                <Typography
+                                    variant="h5"
+                                    fontWeight={600}
+                                    sx={{
+                                        wordWrap: "break-word",
+                                        overflowWrap: "break-word",
+                                        hyphens: "auto",
+                                    }}
+                                >
                                     {video.title}
                                 </Typography>
 
@@ -349,7 +408,14 @@ const VideoDetail = () => {
                                 </Stack>
 
                                 {video.tags && video.tags.length > 0 && (
-                                    <Box display="flex" gap={1} flexWrap="wrap">
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            gap: 0.75,
+                                            flexWrap: "wrap",
+                                            minWidth: 0,
+                                        }}
+                                    >
                                         {video.tags.map((tag) => (
                                             <Chip
                                                 key={tag.id}
@@ -359,6 +425,7 @@ const VideoDetail = () => {
                                                     bgcolor: "primary.main",
                                                     color: "primary.contrastText",
                                                     fontWeight: 500,
+                                                    maxWidth: "100%",
                                                 }}
                                             />
                                         ))}
@@ -371,7 +438,12 @@ const VideoDetail = () => {
                                     <Typography
                                         variant="body2"
                                         color="text.primary"
-                                        sx={{ whiteSpace: "pre-wrap" }}
+                                        sx={{
+                                            whiteSpace: "pre-wrap",
+                                            wordWrap: "break-word",
+                                            overflowWrap: "break-word",
+                                            hyphens: "auto",
+                                        }}
                                     >
                                         {video.description}
                                     </Typography>
@@ -385,16 +457,33 @@ const VideoDetail = () => {
 
                                 {/* Additional Info */}
                                 <Stack spacing={1}>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{
+                                            wordWrap: "break-word",
+                                            overflowWrap: "break-word",
+                                        }}
+                                    >
                                         <strong>Video ID:</strong> {video.id}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{
+                                            wordWrap: "break-word",
+                                            overflowWrap: "break-word",
+                                        }}
+                                    >
                                         <strong>YouTube URL:</strong>{" "}
                                         <a
                                             href={video.youtube_url}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            style={{ color: "inherit" }}
+                                            style={{
+                                                color: "inherit",
+                                                wordBreak: "break-all",
+                                            }}
                                         >
                                             {video.youtube_url}
                                         </a>
@@ -432,20 +521,25 @@ const VideoDetail = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Snackbar Feedback */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={2500}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            >
+                <Alert
+                    severity={snackbar.severity}
+                    sx={{ width: "100%" }}
+                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };
-
-// Extract YouTube ID
-function extractVideoId(url) {
-    try {
-        const regExp = /(?:v=|\/)([0-9A-Za-z_-]{11}).*/;
-        const match = url.match(regExp);
-        return match ? match[1] : null;
-    } catch {
-        return null;
-    }
-}
 
 // Format date (short)
 function formatDate(date) {
