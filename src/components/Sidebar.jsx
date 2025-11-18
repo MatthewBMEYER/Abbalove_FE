@@ -20,6 +20,7 @@ import {
     Call,
     Groups,
     Church,
+    Notifications,
     Dashboard,
     Settings,
     Event,
@@ -40,7 +41,7 @@ const menuConfig = {
         path: '/dashboard',
     },
     worship: {
-        label: 'Worship',
+        label: 'Service',
         icon: <Church />,
         children: {
             schedule: {
@@ -57,10 +58,10 @@ const menuConfig = {
             }
         }
     },
-    events: {
-        label: 'Events',
+    calendar: {
+        label: 'Calendar',
         icon: <Event />,
-        path: 'evetns',
+        path: 'calendar',
     },
     teams: {
         label: 'Teams',
@@ -101,6 +102,11 @@ const menuConfig = {
 }
 
 const footerConfig = {
+    notification: {
+        label: 'Notifications',
+        icon: <Notifications />,
+        path: '/notifications',
+    },
     support: {
         label: 'Support',
         icon: <Call />,

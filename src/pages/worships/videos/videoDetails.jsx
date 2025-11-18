@@ -25,6 +25,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate, useParams } from "react-router-dom";
 import { useUserStore } from "../../../store/userStore";
 import api from "../../../api";
+import { useTags } from "../../../hook/useTags"; // Import the custom hook
 
 const VideoDetail = () => {
     const { id } = useParams();
@@ -37,6 +38,9 @@ const VideoDetail = () => {
     const [saving, setSaving] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
 
+    // Use the custom hook for tags
+    const { availableTags, loading: tagsLoading, refetch: refetchTags } = useTags();
+
     // Edit form state
     const [editForm, setEditForm] = useState({
         title: "",
@@ -44,9 +48,6 @@ const VideoDetail = () => {
         youtube_url: "",
         tags: [],
     });
-
-    // Available tags for autocomplete
-    const [availableTags, setAvailableTags] = useState([]);
 
     const isAdmin = user?.roleName === "admin" || user?.roleName === "master";
 
@@ -83,21 +84,8 @@ const VideoDetail = () => {
         }
     };
 
-    // Fetch available tags
-    const fetchTags = async () => {
-        try {
-            const res = await api.get("/videos/tags/all");
-            if (res.data.success) {
-                setAvailableTags(res.data.data);
-            }
-        } catch (err) {
-            console.error("Fetch tags error:", err);
-        }
-    };
-
     useEffect(() => {
         fetchVideo();
-        fetchTags();
     }, [id]);
 
     // Handle edit mode
@@ -114,6 +102,49 @@ const VideoDetail = () => {
             youtube_url: video.youtube_url,
             tags: video.tags || [],
         });
+    };
+
+    // Tag utility functions
+    const getTagLabel = (option) => {
+        return typeof option === "string" ? option : option.name;
+    };
+
+    const handleTagsChange = (event, newValue) => {
+        const processedTags = [];
+        const seen = new Set();
+
+        for (const tag of newValue) {
+            const tagName = typeof tag === 'string' ? tag : tag.name;
+            const normalized = tagName.toLowerCase().trim();
+
+            // Check for duplicates
+            if (seen.has(normalized)) {
+                setSnackbar({
+                    open: true,
+                    message: `Tag "${tagName}" is already added`,
+                    severity: "warning"
+                });
+                continue;
+            }
+
+            // Convert string to existing tag object if available
+            if (typeof tag === 'string') {
+                const existingTag = availableTags.find(t =>
+                    t.name.toLowerCase().trim() === normalized
+                );
+                if (existingTag) {
+                    processedTags.push(existingTag);
+                    seen.add(normalized);
+                    continue;
+                }
+            }
+
+            // Add the tag
+            processedTags.push(tag);
+            seen.add(normalized);
+        }
+
+        setEditForm(prev => ({ ...prev, tags: processedTags }));
     };
 
     // Save changes
@@ -133,7 +164,7 @@ const VideoDetail = () => {
             setSaving(true);
 
             // Prepare tags - handle both string tags and tag objects
-            const tagNames = editForm.tags.map((tag) =>
+            const tagNames = editForm.tags.map(tag =>
                 typeof tag === 'string' ? tag : tag.name
             );
 
@@ -148,8 +179,8 @@ const VideoDetail = () => {
             });
 
             if (res.data.success) {
-                fetchVideo(); // Refresh the video data - added parentheses
-                fetchTags(); // Refresh the available tags - added parentheses
+                fetchVideo();
+                refetchTags(); // Use the refetch function from hook
                 setEditMode(false);
                 setSnackbar({ open: true, message: "Video updated successfully!", severity: "success" });
             } else {
@@ -335,7 +366,7 @@ const VideoDetail = () => {
                                     fullWidth
                                     value={editForm.title}
                                     onChange={(e) =>
-                                        setEditForm({ ...editForm, title: e.target.value })
+                                        setEditForm(prev => ({ ...prev, title: e.target.value }))
                                     }
                                     required
                                 />
@@ -347,7 +378,7 @@ const VideoDetail = () => {
                                     rows={4}
                                     value={editForm.description}
                                     onChange={(e) =>
-                                        setEditForm({ ...editForm, description: e.target.value })
+                                        setEditForm(prev => ({ ...prev, description: e.target.value }))
                                     }
                                 />
 
@@ -356,7 +387,7 @@ const VideoDetail = () => {
                                     fullWidth
                                     value={editForm.youtube_url}
                                     onChange={(e) =>
-                                        setEditForm({ ...editForm, youtube_url: e.target.value })
+                                        setEditForm(prev => ({ ...prev, youtube_url: e.target.value }))
                                     }
                                     required
                                     helperText="e.g., https://www.youtube.com/watch?v=VIDEO_ID"
@@ -366,24 +397,48 @@ const VideoDetail = () => {
                                     multiple
                                     freeSolo
                                     options={availableTags}
-                                    getOptionLabel={(option) => (typeof option === "string" ? option : option.name)}
+                                    getOptionLabel={getTagLabel}
                                     value={editForm.tags}
-                                    onChange={(e, newValue) =>
-                                        setEditForm({ ...editForm, tags: newValue })
-                                    }
+                                    onChange={handleTagsChange}
+                                    filterOptions={(options, params) => {
+                                        const inputValue = params.inputValue.toLowerCase().trim();
+                                        const selectedNames = new Set(editForm.tags.map(tag =>
+                                            getTagLabel(tag).toLowerCase().trim()
+                                        ));
+
+                                        const filtered = options.filter(option =>
+                                            !selectedNames.has(option.name.toLowerCase().trim()) &&
+                                            option.name.toLowerCase().includes(inputValue)
+                                        );
+
+                                        // Only allow new tag if it doesn't exist and isn't selected
+                                        if (inputValue &&
+                                            !selectedNames.has(inputValue) &&
+                                            !options.some(opt => opt.name.toLowerCase().trim() === inputValue)) {
+                                            filtered.push(inputValue);
+                                        }
+
+                                        return filtered;
+                                    }}
                                     renderTags={(value, getTagProps) =>
                                         value.map((option, index) => (
                                             <Chip
                                                 variant="outlined"
-                                                label={typeof option === "string" ? option : option.name}
+                                                label={getTagLabel(option)}
                                                 {...getTagProps({ index })}
                                                 key={index}
                                             />
                                         ))
                                     }
                                     renderInput={(params) => (
-                                        <TextField {...params} label="Tags" placeholder="Add or select tags" />
+                                        <TextField
+                                            {...params}
+                                            label="Tags"
+                                            placeholder="Add or select tags"
+                                            helperText={tagsLoading ? "Loading tags..." : ""}
+                                        />
                                     )}
+                                    disabled={tagsLoading}
                                 />
                             </Stack>
                         ) : (

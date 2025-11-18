@@ -119,7 +119,7 @@ const ComcellGroupDetails = ({
                         <Typography color="text.secondary">Loading details...</Typography>
                     </Box>
                 );
-            case 2:
+            case 2: //Attendance
                 return isTabLoaded ? (
                     <CurrentTabComponent
                         groupId={effectiveGroupId}

@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../../store/userStore";
 import api from "../../../api";
 import { VideoLibrary } from "@mui/icons-material";
+import { useTags } from "../../../hook/useTags"; // Import the custom hook
 
 const NewVideo = () => {
     const navigate = useNavigate();
@@ -32,28 +33,19 @@ const NewVideo = () => {
     const [description, setDescription] = useState("");
     const [eventDate, setEventDate] = useState(dayjs());
     const [tags, setTags] = useState([]);
-    const [allTags, setAllTags] = useState([]);
     const [loading, setLoading] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
+
+    // Use the custom hook for tags
+    const { availableTags, loading: tagsLoading } = useTags();
 
     useEffect(() => {
         if (!loaded) return;
 
         if (!isAdmin) {
             navigate(-1);
-        } else {
-            fetchTags();
         }
-    }, []);
-
-    const fetchTags = async () => {
-        try {
-            const res = await api.get("/videos/tags/all");
-            if (res.data.success) setAllTags(res.data.data);
-        } catch (err) {
-            console.error("Fetch tags error:", err);
-        }
-    };
+    }, [loaded, isAdmin, navigate]);
 
     const extractVideoId = (url) => {
         try {
@@ -65,7 +57,11 @@ const NewVideo = () => {
         }
     };
 
-    // NEW: Function to handle tag selection/creation
+    // Tag utility functions
+    const getTagLabel = (option) => {
+        return typeof option === "string" ? option : option.name;
+    };
+
     const handleTagsChange = (event, newValue) => {
         const processedTags = [];
         const seen = new Set();
@@ -81,12 +77,12 @@ const NewVideo = () => {
                     message: `Tag "${tagName}" is already added`,
                     severity: "warning"
                 });
-                continue; // Skip duplicate
+                continue;
             }
 
             // Convert string to existing tag object if available
             if (typeof tag === 'string') {
-                const existingTag = allTags.find(t =>
+                const existingTag = availableTags.find(t =>
                     t.name.toLowerCase().trim() === normalized
                 );
                 if (existingTag) {
@@ -102,17 +98,6 @@ const NewVideo = () => {
         }
 
         setTags(processedTags);
-    };
-
-    // NEW: Function to get tag display name
-    const getTagLabel = (option) => {
-        return typeof option === "string" ? option : option.name;
-    };
-
-    // NEW: Function to check if tag is already selected
-    const isTagSelected = (option, value) => {
-        const optionName = getTagLabel(option).toLowerCase();
-        return value.some(tag => getTagLabel(tag).toLowerCase() === optionName);
     };
 
     const videoId = extractVideoId(youtubeUrl);
@@ -214,18 +199,18 @@ const NewVideo = () => {
                                 }}
                             />
 
-                            {/* UPDATED: Autocomplete with proper tag handling */}
+                            {/* Updated Autocomplete using the hook */}
                             <Autocomplete
                                 multiple
                                 freeSolo
-                                options={allTags}
+                                options={availableTags}
                                 getOptionLabel={getTagLabel}
                                 value={tags}
                                 onChange={handleTagsChange}
                                 filterOptions={(options, params) => {
                                     const inputValue = params.inputValue.toLowerCase().trim();
                                     const selectedNames = new Set(tags.map(tag =>
-                                        typeof tag === 'string' ? tag.toLowerCase().trim() : tag.name.toLowerCase().trim()
+                                        getTagLabel(tag).toLowerCase().trim()
                                     ));
 
                                     const filtered = options.filter(option =>
@@ -253,8 +238,14 @@ const NewVideo = () => {
                                     ))
                                 }
                                 renderInput={(params) => (
-                                    <TextField {...params} label="Tags" placeholder="Add or select tags" />
+                                    <TextField
+                                        {...params}
+                                        label="Tags"
+                                        placeholder="Add or select tags"
+                                        helperText={tagsLoading ? "Loading tags..." : ""}
+                                    />
                                 )}
+                                disabled={tagsLoading}
                             />
                         </Stack>
                     </Box>

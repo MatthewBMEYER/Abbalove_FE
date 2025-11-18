@@ -543,7 +543,6 @@ const TabComcellAttendance = ({ groupId, groupData }) => {
                                             left: 0,
                                             backgroundColor: 'background.paper',
                                             zIndex: 100,
-                                            borderRight: '1px solid rgba(224, 224, 224, 1)'
                                         }}
                                     >
                                         Team Member

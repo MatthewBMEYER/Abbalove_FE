@@ -39,6 +39,10 @@ import AllComsell from './pages/comsell/AllComcell';
 import MyComsell from './pages/comsell/MyComcell';
 import ComcellGroupDetail from './pages/comsell/ComcellGroupDetail';
 
+// 404
+import NotFoundPage from './pages/Uavailable404';
+import Calendar from './pages/Calendar';
+
 
 
 
@@ -80,6 +84,8 @@ function App() {
           {/* <Route path="worship/schedule" element={<Schedule />} />
           <Route path="worship/collections" element={<Collections />} /> */}
           <Route path="worship/giving" element={<Giving />} />
+          <Route path="calendar" element={<Calendar />} />
+
 
           {/* Videos */}
           <Route path="worship/video/collections" element={<VideoCollection />} />
@@ -107,6 +113,7 @@ function App() {
 
 
         </Route>
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );
