@@ -45,7 +45,7 @@ const AuthLayout = ({ children }) => {
                     minHeight: 600,
                     display: 'flex',
                     boxShadow: theme.palette.mode === 'dark'
-                        ? '0 4px 50px rgba(238, 90, 87, 0.36)'
+                        ? '0 4px 50px rgba(0, 0, 0, 0.36)'
                         : '0 4px 20px rgba(0, 0, 0, 0.1)',
                     backgroundColor: theme.palette.background.paper,
                     borderRadius: theme.shape.borderRadius,

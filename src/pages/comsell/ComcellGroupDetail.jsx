@@ -29,6 +29,7 @@ import { useUserStore } from '../../store/userStore';
 import TabComcellMembers from "./DetailTabs/TabComcellMembers";
 import TabComcellSettings from "./DetailTabs/TabComcellSettings";
 import TabComcellAttendance from "./DetailTabs/TabComcellAttendance";
+import TabComcellEvents from "./DetailTabs/TabComcellEvents";
 
 const ComcellGroupDetails = ({
     hideHeader = false,
@@ -86,6 +87,7 @@ const ComcellGroupDetails = ({
         { label: "Members", icon: <GroupIcon sx={{ fontSize: 20 }} />, component: TabComcellMembers },
         { label: "Settings", icon: <InfoIcon sx={{ fontSize: 20 }} />, component: TabComcellSettings },
         { label: "Attendance", icon: <CheckBox sx={{ fontSize: 20 }} />, component: TabComcellAttendance },
+        { label: "Events", icon: <BackHand sx={{ fontSize: 20 }} />, component: TabComcellEvents }
     ];
 
     const renderTabContent = () => {
@@ -130,6 +132,19 @@ const ComcellGroupDetails = ({
                 ) : (
                     <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
                         <Typography color="text.secondary">Loading schedule...</Typography>
+                    </Box>
+                );
+            case 3: //Events
+                return isTabLoaded ? (
+                    <CurrentTabComponent
+                        groupId={effectiveGroupId}
+                        isActive={isTabLoaded}
+                        groupData={groupData}
+                        refreshGroupDetails={fetchGroupDetails}
+                    />
+                ) : (
+                    <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+                        <Typography color="text.secondary">Loading Events...</Typography>
                     </Box>
                 );
             default:

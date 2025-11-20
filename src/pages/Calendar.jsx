@@ -1,404 +1,489 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
-    Card,
-    CardContent,
     Typography,
-    Chip,
-    IconButton,
     Grid,
     List,
     ListItem,
     ListItemText,
-    ToggleButton,
-    ToggleButtonGroup,
-    Container,
-    Paper,
-    Divider
+    Chip,
+    useTheme,
+    alpha,
+    Button,
+    IconButton,
+    Popover,
+    Stack,
 } from '@mui/material';
 import {
+    Event as EventIcon,
     ChevronLeft,
     ChevronRight,
-    CalendarMonth,
-    ViewList,
-    Church,
-    Event,
-    Groups,
-    Celebration
+    Today,
 } from '@mui/icons-material';
-
-// Same event data (kept unchanged)
-const eventsData = [
-    {
-        id: 1,
-        title: "Sunday Worship Service",
-        date: "2024-11-17",
-        time: "09:00 AM",
-        type: "service",
-        description: "Join us for our weekly Sunday worship service"
-    },
-    {
-        id: 2,
-        title: "Youth Cell Group",
-        date: "2024-11-18",
-        time: "07:00 PM",
-        type: "cell",
-        description: "Youth cell community meeting at the church hall"
-    },
-    {
-        id: 3,
-        title: "Prayer Meeting",
-        date: "2024-11-20",
-        time: "06:30 PM",
-        type: "event",
-        description: "Midweek prayer and worship gathering"
-    },
-    {
-        id: 4,
-        title: "Women's Cell Group",
-        date: "2024-11-21",
-        time: "10:00 AM",
-        type: "cell",
-        description: "Women's fellowship and Bible study"
-    },
-    {
-        id: 5,
-        title: "Sunday Worship Service",
-        date: "2024-11-24",
-        time: "09:00 AM",
-        type: "service",
-        description: "Join us for our weekly Sunday worship service"
-    },
-    {
-        id: 6,
-        title: "Thanksgiving Celebration",
-        date: "2024-11-28",
-        time: "06:00 PM",
-        type: "special",
-        description: "Special Thanksgiving service and potluck dinner"
-    },
-    {
-        id: 7,
-        title: "Men's Cell Group",
-        date: "2024-11-22",
-        time: "07:00 PM",
-        type: "cell",
-        description: "Men's fellowship and discipleship meeting"
-    },
-    {
-        id: 8,
-        title: "Choir Practice",
-        date: "2024-11-23",
-        time: "04:00 PM",
-        type: "event",
-        description: "Weekly choir rehearsal for worship team"
-    },
-    {
-        id: 9,
-        title: "Sunday Worship Service",
-        date: "2024-12-01",
-        time: "09:00 AM",
-        type: "service",
-        description: "Join us for our weekly Sunday worship service"
-    },
-    {
-        id: 10,
-        title: "Christmas Planning Meeting",
-        date: "2024-12-05",
-        time: "07:30 PM",
-        type: "event",
-        description: "Planning meeting for Christmas celebration events"
-    }
-];
+import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { PickersDay } from '@mui/x-date-pickers/PickersDay';
 
 const Calendar = () => {
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [view, setView] = useState('calendar');
+    const theme = useTheme();
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [events, setEvents] = useState([]);
+    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+    const [monthYearAnchor, setMonthYearAnchor] = useState(null);
 
-    const eventTypeConfig = {
-        service: { color: 'primary', icon: <Church />, label: 'Sunday Service' },
-        cell: { color: 'success', icon: <Groups />, label: 'Cell Group' },
-        event: { color: 'warning', icon: <Event />, label: 'Event' },
-        special: { color: 'secondary', icon: <Celebration />, label: 'Special Event' }
+    const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    // Simulated API fetch
+    const fetchChurchEvents = async (month, year) => {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const dummyEvents = [
+                    { id: 1, title: 'Sunday Service', date: new Date(year, month, 5), type: 'service', time: '10:00 AM', priority: 1 },
+                    { id: 2, title: 'Bible Study', date: new Date(year, month, 7), type: 'study', time: '7:00 PM', priority: 2 },
+                    { id: 3, title: 'Youth Practice', date: new Date(year, month, 10), type: 'practice', time: '6:00 PM', priority: 2 },
+                    { id: 4, title: 'Prayer Meeting', date: new Date(year, month, 12), type: 'prayer', time: '7:00 PM', priority: 3 },
+                    { id: 5, title: 'Sunday Service', date: new Date(year, month, 12), type: 'service', time: '10:00 AM', priority: 1 },
+                    { id: 6, title: 'Choir Rehearsal', date: new Date(year, month, 15), type: 'practice', time: '5:00 PM', priority: 2 },
+                    { id: 7, title: "Men's Fellowship", date: new Date(year, month, 18), type: 'fellowship', time: '6:30 PM', priority: 3 },
+                    { id: 8, title: 'Sunday Service', date: new Date(year, month, 19), type: 'service', time: '10:00 AM', priority: 1 },
+                    { id: 9, title: "Women's Ministry", date: new Date(year, month, 22), type: 'fellowship', time: '10:00 AM', priority: 3 },
+                    { id: 10, title: 'Sunday Service', date: new Date(year, month, 26), type: 'service', time: '10:00 AM', priority: 1 }
+                ];
+                resolve(dummyEvents);
+            }, 300);
+        });
     };
 
-    const getDaysInMonth = (date) => {
-        const year = date.getFullYear();
-        const month = date.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        return {
-            daysInMonth: lastDay.getDate(),
-            startingDayOfWeek: firstDay.getDay(),
-            year,
-            month
+    useEffect(() => {
+        const loadEvents = async () => {
+            const eventsData = await fetchChurchEvents(currentMonth, currentYear);
+            setEvents(eventsData);
         };
+        loadEvents();
+    }, [currentMonth, currentYear]);
+
+    const getEventTypeColor = (type) => {
+        const colors = {
+            service: theme.palette.primary.main,
+            practice: theme.palette.warning.main,
+            study: theme.palette.success.main,
+            prayer: theme.palette.secondary.main,
+            fellowship: theme.palette.error.main,
+        };
+        return colors[type] || theme.palette.grey[600];
     };
 
-    const getEventsForDate = (date) => {
-        const dateStr = date.toISOString().split('T')[0];
-        return eventsData.filter(event => event.date === dateStr);
+    const getEventTypeLabel = (type) => {
+        const labels = {
+            service: 'Service',
+            practice: 'Practice',
+            study: 'Bible Study',
+            prayer: 'Prayer',
+            fellowship: 'Fellowship',
+        };
+        return labels[type] || 'Event';
     };
 
-    const handlePrevMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+    const getEventsOnDate = (date) => {
+        if (!date) return [];
+        return events.filter(event =>
+            event.date.getDate() === date.getDate() &&
+            event.date.getMonth() === date.getMonth() &&
+            event.date.getFullYear() === date.getFullYear()
+        );
     };
 
-    const handleNextMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    const hasEventsOnDate = (date) => {
+        return getEventsOnDate(date).length > 0;
     };
 
-    const handleViewChange = (event, newView) => {
-        if (newView !== null) setView(newView);
+    const getTopEventOnDate = (date) => {
+        const eventsOnDate = getEventsOnDate(date);
+        return eventsOnDate.length
+            ? eventsOnDate.reduce((prev, current) => (prev.priority < current.priority ? prev : current))
+            : null;
     };
 
-    const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentDate);
-    const monthName = currentDate.toLocaleString('default', { month: 'long' });
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const today = new Date();
-
-    const renderCalendarView = () => {
-        const rows = [];
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentDate);
-        const today = new Date();
-
-        // Build cells for all days
-        const cells = [];
-
-        // Empty cells before 1st
-        for (let i = 0; i < startingDayOfWeek; i++) {
-            cells.push(<td key={`empty-${i}`} style={{ height: 100 }} />);
-        }
-
-        // Days of the month
-        for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, month, day);
-            const events = getEventsForDate(date);
-            const isToday = date.toDateString() === today.toDateString();
-
-            cells.push(
-                <td
-                    key={day}
-                    style={{
-                        height: 100,
-                        border: isToday ? '2px solid' : '1px solid',
-                        borderColor: isToday ? 'primary.main' : 'divider',
-                        backgroundColor: isToday ? 'action.hover' : 'background.paper',
-                        padding: 4,
-                        verticalAlign: 'top',
-                        borderRadius: 4
-                    }}
-                >
-                    <Typography
-                        variant="body2"
-                        fontWeight={isToday ? 'bold' : 'regular'}
-                        color={isToday ? 'primary.main' : 'text.secondary'}
-                        sx={{ lineHeight: 1.2, mb: 0.5 }}
-                    >
-                        {day}
-                    </Typography>
-                    <Box sx={{ overflow: 'hidden' }}>
-                        {events.slice(0, 2).map(event => (
-                            <Chip
-                                key={event.id}
-                                label={event.title}
-                                size="small"
-                                color={eventTypeConfig[event.type]?.color || 'default'}
-                                sx={{
-                                    mb: 0.5,
-                                    width: '100%',
-                                    height: 'auto',
-                                    fontSize: '0.65rem',
-                                    '& .MuiChip-label': {
-                                        px: 0.5,
-                                        py: 0.25,
-                                        whiteSpace: 'normal',
-                                        wordBreak: 'break-word'
-                                    }
-                                }}
-                            />
-                        ))}
-                        {events.length > 2 && (
-                            <Typography variant="caption" color="text.secondary">
-                                +{events.length - 2} more
-                            </Typography>
-                        )}
-                    </Box>
-                </td>
-            );
-        }
-
-        // Fill remaining cells to complete last row (up to 42 cells = 6 weeks)
-        while (cells.length % 7 !== 0) {
-            cells.push(<td key={`trailing-${cells.length}`} style={{ height: 100 }} />);
-        }
-
-        // Group into rows of 7
-        for (let i = 0; i < cells.length; i += 7) {
-            rows.push(<tr key={i}>{cells.slice(i, i + 7)}</tr>);
-        }
+    // Custom day renderer
+    const CustomDay = (props) => {
+        const { day, selected = false, ...pickersDayProps } = props;
+        const hasEvents = hasEventsOnDate(day);
+        const topEvent = getTopEventOnDate(day);
 
         return (
-            <Box sx={{ overflowX: 'auto', width: '100%' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                    <thead>
-                        <tr>
-                            {days.map(day => (
-                                <th
-                                    key={day}
-                                    style={{
-                                        textAlign: 'center',
-                                        padding: '8px 0',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 600,
-                                        color: 'text.secondary',
-                                        borderBottom: '1px solid',
-                                        borderColor: 'divider'
-                                    }}
-                                >
-                                    {day}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows}
-                    </tbody>
-                </table>
+            <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PickersDay
+                    {...pickersDayProps}
+                    day={day}
+                    selected={selected}
+                    sx={{
+                        position: 'relative',
+                        backgroundColor: selected ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                        border: selected ? `2px solid ${theme.palette.primary.main}` : '1px solid transparent',
+                        '&:hover': {
+                            backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        },
+                        ...pickersDayProps.sx,
+                    }}
+                />
+                {hasEvents && topEvent && (
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            bottom: 4,
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            backgroundColor: getEventTypeColor(topEvent.type),
+                            boxShadow: '0 0 2px rgba(0,0,0,0.3)'
+                        }}
+                    />
+                )}
             </Box>
         );
     };
 
-    const renderListView = () => {
-        const sortedEvents = [...eventsData].sort((a, b) =>
-            new Date(a.date) - new Date(b.date)
-        );
-
-        return (
-            <List disablePadding>
-                {sortedEvents.map((event, index) => {
-                    const eventDate = new Date(event.date);
-                    const config = eventTypeConfig[event.type];
-
-                    return (
-                        <React.Fragment key={event.id}>
-                            <ListItem
-                                sx={{
-                                    py: 2,
-                                    flexDirection: 'column',
-                                    alignItems: 'flex-start',
-                                    gap: 1
-                                }}
-                            >
-                                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                    <Box sx={{ mr: 1.5, color: config?.color || 'text.primary' }}>
-                                        {config?.icon}
-                                    </Box>
-                                    <ListItemText
-                                        primary={
-                                            <Typography variant="subtitle1">{event.title}</Typography>
-                                        }
-                                        secondary={
-                                            <>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {eventDate.toLocaleDateString('en-US', {
-                                                        weekday: 'long',
-                                                        year: 'numeric',
-                                                        month: 'short',
-                                                        day: 'numeric'
-                                                    })} at {event.time}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary" mt={0.5}>
-                                                    {event.description}
-                                                </Typography>
-                                            </>
-                                        }
-                                    />
-                                    <Chip
-                                        label={config?.label}
-                                        size="small"
-                                        color={config?.color || 'default'}
-                                    />
-                                </Box>
-                            </ListItem>
-                            {index < sortedEvents.length - 1 && <Divider variant="inset" component="li" />}
-                        </React.Fragment>
-                    );
-                })}
-            </List>
-        );
+    const navigateMonth = (direction) => {
+        const newDate = new Date(currentYear, currentMonth + direction, 1);
+        setCurrentMonth(newDate.getMonth());
+        setCurrentYear(newDate.getFullYear());
+        setSelectedDate(new Date(currentYear, currentMonth + direction, selectedDate.getDate()));
     };
 
-    return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Card elevation={2}>
-                <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <Church sx={{ fontSize: 32, color: 'primary.main' }} />
-                            <Typography variant="h5" fontWeight="medium">
-                                Church Calendar
-                            </Typography>
-                        </Box>
-                        <ToggleButtonGroup
-                            value={view}
-                            exclusive
-                            onChange={handleViewChange}
-                            size="small"
-                        >
-                            <ToggleButton value="calendar" sx={{ px: 1.5 }}>
-                                <CalendarMonth fontSize="small" sx={{ mr: 0.75 }} /> Calendar
-                            </ToggleButton>
-                            <ToggleButton value="list" sx={{ px: 1.5 }}>
-                                <ViewList fontSize="small" sx={{ mr: 0.75 }} /> List
-                            </ToggleButton>
-                        </ToggleButtonGroup>
-                    </Box>
+    const goToToday = () => {
+        const today = new Date();
+        setSelectedDate(today);
+        setCurrentMonth(today.getMonth());
+        setCurrentYear(today.getFullYear());
+    };
 
-                    {view === 'calendar' && (
-                        <>
-                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 2 }}>
-                                <IconButton onClick={handlePrevMonth} size="small">
-                                    <ChevronLeft />
-                                </IconButton>
-                                <Typography variant="h6" fontWeight="medium" sx={{ mx: 1 }}>
-                                    {monthName} {year}
-                                </Typography>
-                                <IconButton onClick={handleNextMonth} size="small">
-                                    <ChevronRight />
-                                </IconButton>
+    const handleMonthYearClick = (event) => {
+        setMonthYearAnchor(event.currentTarget);
+    };
+
+    const handleMonthYearClose = () => {
+        setMonthYearAnchor(null);
+    };
+
+    const selectMonth = (monthIndex) => {
+        setCurrentMonth(monthIndex);
+        setSelectedDate(new Date(currentYear, monthIndex, Math.min(selectedDate.getDate(), 28)));
+        handleMonthYearClose();
+    };
+
+    const navigateYear = (direction) => {
+        setCurrentYear(prev => prev + direction);
+    };
+
+    const open = Boolean(monthYearAnchor);
+
+    return (
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Box sx={{
+                p: { xs: 2, md: 3 },
+                minHeight: '100vh',
+            }}>
+                <Grid container spacing={3} sx={{ maxWidth: 1600, margin: '0 auto' }}>
+                    {/* Calendar Side - Left */}
+                    <Grid item xs={12} lg={7}>
+                        <Box
+                            sx={{
+                                p: { xs: 2, md: 3, lg: 4 },
+                                borderRadius: 3,
+                                height: '100%',
+                                backgroundColor: 'background.default',
+                                border: `1px solid ${theme.palette.divider}`,
+                                boxShadow: 1,
+                            }}
+                        >
+                            {/* Custom Calendar Header */}
+                            <Box sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                mb: 2,
+                                flexWrap: 'wrap',
+                                gap: 1
+                            }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleMonthYearClick}
+                                    sx={{
+                                        minWidth: 180,
+                                        justifyContent: 'space-between',
+                                        fontWeight: '600',
+                                        fontSize: { xs: '1rem', md: '1.1rem', lg: '1.2rem' },
+                                        borderColor: 'divider',
+                                        color: 'text.primary'
+                                    }}
+                                >
+                                    {months[currentMonth]} {currentYear}
+                                </Button>
+
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <IconButton
+                                        onClick={() => navigateMonth(-1)}
+                                        size="small"
+                                    >
+                                        <ChevronLeft />
+                                    </IconButton>
+                                    <IconButton
+                                        onClick={() => navigateMonth(1)}
+                                        size="small"
+                                    >
+                                        <ChevronRight />
+                                    </IconButton>
+                                    <Button
+                                        startIcon={<Today />}
+                                        onClick={goToToday}
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{ ml: 1 }}
+                                    >
+                                        Today
+                                    </Button>
+                                </Box>
                             </Box>
 
-                            {renderCalendarView()}
-                        </>
-                    )}
+                            {/* Month/Year Popover */}
+                            <Popover
+                                open={open}
+                                anchorEl={monthYearAnchor}
+                                onClose={handleMonthYearClose}
+                                anchorOrigin={{
+                                    vertical: 'bottom',
+                                    horizontal: 'left',
+                                }}
+                                transformOrigin={{
+                                    vertical: 'top',
+                                    horizontal: 'left',
+                                }}
+                            >
+                                <Box sx={{ p: 2, minWidth: 300, backgroundColor: 'background.paper' }}>
+                                    {/* Year Navigation */}
+                                    <Box sx={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        mb: 2
+                                    }}>
+                                        <IconButton
+                                            onClick={() => navigateYear(-1)}
+                                            size="small"
+                                        >
+                                            <ChevronLeft />
+                                        </IconButton>
+                                        <Typography variant="h6" fontWeight="600">
+                                            {currentYear}
+                                        </Typography>
+                                        <IconButton
+                                            onClick={() => navigateYear(1)}
+                                            size="small"
+                                        >
+                                            <ChevronRight />
+                                        </IconButton>
+                                    </Box>
 
-                    {view === 'list' && (
-                        <Box>
-                            <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>
-                                Upcoming Events
-                            </Typography>
-                            {renderListView()}
+                                    {/* Month Grid */}
+                                    <Grid container spacing={1}>
+                                        {months.map((month, index) => (
+                                            <Grid item xs={4} key={month}>
+                                                <Button
+                                                    fullWidth
+                                                    variant={currentMonth === index ? "contained" : "outlined"}
+                                                    onClick={() => selectMonth(index)}
+                                                    size="small"
+                                                    sx={{
+                                                        py: 1.5,
+                                                        fontWeight: currentMonth === index ? '600' : '400'
+                                                    }}
+                                                >
+                                                    {month.substring(0, 3)}
+                                                </Button>
+                                            </Grid>
+                                        ))}
+                                    </Grid>
+                                </Box>
+                            </Popover>
+
+                            {/* Calendar */}
+                            <Box sx={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                mt: 2
+                            }}>
+                                <DateCalendar
+                                    value={selectedDate}
+                                    onChange={(newDate) => {
+                                        setSelectedDate(newDate);
+                                        setCurrentMonth(newDate.getMonth());
+                                        setCurrentYear(newDate.getFullYear());
+                                    }}
+                                    onMonthChange={(newDate) => {
+                                        setCurrentMonth(newDate.getMonth());
+                                        setCurrentYear(newDate.getFullYear());
+                                    }}
+                                    showDaysOutsideCurrentMonth
+                                    slots={{
+                                        day: CustomDay,
+                                    }}
+                                    sx={{
+                                        width: '100%',
+                                        maxWidth: { xs: 400, md: 500, lg: 600, xl: 700 },
+                                        '& .MuiPickersDay-root': {
+                                            borderRadius: 2,
+                                            margin: { xs: 0.3, md: 0.5, lg: 0.7 },
+                                            fontSize: { xs: '0.875rem', lg: '1rem' },
+                                            fontWeight: 400,
+                                            width: { xs: 36, md: 40, lg: 48, xl: 56 },
+                                            height: { xs: 36, md: 40, lg: 48, xl: 56 },
+                                            color: 'text.primary',
+                                        },
+                                        '& .MuiPickersDay-today': {
+                                            border: `1px solid ${theme.palette.primary.main}`,
+                                            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                        },
+                                        '& .Mui-selected': {
+                                            backgroundColor: `${theme.palette.primary.main} !important`,
+                                            color: 'white !important',
+                                        },
+                                        '& .MuiPickersCalendarHeader-root': {
+                                            display: 'none',
+                                        },
+                                        '& .MuiDayCalendar-weekDayLabel': {
+                                            color: 'text.secondary',
+                                            fontSize: { xs: '0.75rem', lg: '0.875rem' },
+                                            width: { xs: 36, md: 40, lg: 48, xl: 56 },
+                                            height: { xs: 36, md: 40, lg: 48, xl: 56 },
+                                        },
+                                    }}
+                                />
+                            </Box>
+
+                            {/* Event Legend */}
+                            <Box sx={{
+                                mt: 3,
+                                p: 2,
+                                backgroundColor: 'background.paper',
+                                borderRadius: 2,
+                                border: `1px solid ${theme.palette.divider}`
+                            }}>
+                                <Typography variant="subtitle2" fontWeight="600" gutterBottom color="text.primary">
+                                    Event Types:
+                                </Typography>
+                                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                                    {['service', 'study', 'practice', 'prayer', 'fellowship'].map(type => (
+                                        <Box key={type} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <Box
+                                                sx={{
+                                                    width: 8,
+                                                    height: 8,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: getEventTypeColor(type),
+                                                }}
+                                            />
+                                            <Typography variant="caption" color="text.secondary">
+                                                {getEventTypeLabel(type)}
+                                            </Typography>
+                                        </Box>
+                                    ))}
+                                </Stack>
+                            </Box>
                         </Box>
-                    )}
+                    </Grid>
 
-                    {/* Legend */}
-                    <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
-                        {Object.values(eventTypeConfig).map((config, idx) => (
-                            <Chip
-                                key={idx}
-                                icon={config.icon}
-                                label={config.label}
-                                size="small"
-                                color={config.color}
-                                variant="outlined"
-                            />
-                        ))}
-                    </Box>
-                </CardContent>
-            </Card>
-        </Container>
+                    {/* Events Side - Right */}
+                    <Grid item xs={12} lg={5}>
+                        <Box
+                            sx={{
+                                p: { xs: 2, md: 3 },
+                                borderRadius: 3,
+                                height: '100%',
+                                backgroundColor: 'background.default',
+                                border: `1px solid ${theme.palette.divider}`,
+                                boxShadow: 1,
+                                position: { lg: 'sticky' },
+                                top: { lg: 20 }
+                            }}
+                        >
+                            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                                <EventIcon color="primary" />
+                                Events on {selectedDate.toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                })}
+                            </Typography>
+
+                            {getEventsOnDate(selectedDate).length > 0 ? (
+                                <List dense sx={{ '& .MuiListItem-root': { px: 0 } }}>
+                                    {getEventsOnDate(selectedDate).map(event => (
+                                        <ListItem
+                                            key={event.id}
+                                            divider
+                                            sx={{
+                                                borderRadius: 2,
+                                                mb: 2,
+                                                py: 2,
+                                                backgroundColor: alpha(getEventTypeColor(event.type), 0.08),
+                                                border: `1px solid ${alpha(getEventTypeColor(event.type), 0.2)}`,
+                                                '&:last-child': { mb: 0 }
+                                            }}
+                                        >
+                                            <ListItemText
+                                                primary={
+                                                    <Typography variant="subtitle1" fontWeight="600">
+                                                        {event.title}
+                                                    </Typography>
+                                                }
+                                                secondary={
+                                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1 }}>
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            {event.time}
+                                                        </Typography>
+                                                        <Typography variant="body2" color="text.secondary">•</Typography>
+                                                        <Chip
+                                                            label={getEventTypeLabel(event.type)}
+                                                            size="small"
+                                                            sx={{
+                                                                backgroundColor: getEventTypeColor(event.type),
+                                                                color: 'white',
+                                                                fontWeight: 'bold',
+                                                                fontSize: '0.75rem',
+                                                                height: 24
+                                                            }}
+                                                        />
+                                                    </Box>
+                                                }
+                                            />
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            ) : (
+                                <Box sx={{
+                                    py: 8,
+                                    textAlign: 'center',
+                                    backgroundColor: 'background.paper',
+                                    borderRadius: 2,
+                                    border: `1px dashed`,
+                                    borderColor: 'divider'
+                                }}>
+                                    <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                        No events scheduled for this day.
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Box>
+                    </Grid>
+                </Grid >
+            </Box >
+        </LocalizationProvider >
     );
 };
 

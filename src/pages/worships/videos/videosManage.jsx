@@ -169,7 +169,7 @@ const VideoManage = () => {
             <Box
                 sx={{
                     bgcolor: "background.paper",
-                    px: 0,
+                    px: 3,
                     py: 2,
                     position: "sticky",
                     top: 0,
@@ -177,19 +177,6 @@ const VideoManage = () => {
                 }}
             >
                 <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-                    {/* <IconButton
-                        onClick={() => navigate(-1)}
-                        sx={{
-                            bgcolor: "action.hover",
-                            "&:hover": { bgcolor: "action.selected" },
-                        }}
-                    >
-                        <ArrowBackIcon />
-                    </IconButton>
-
-                    <Typography variant="h6" fontWeight={600} sx={{ flex: 1 }}>
-                        Video Management
-                    </Typography> */}
 
                     <TextField
                         variant="outlined"

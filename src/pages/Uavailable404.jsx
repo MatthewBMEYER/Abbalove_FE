@@ -30,12 +30,12 @@ export default function NotFoundPage() {
                     <Typography
                         variant="h1"
                         fontWeight="bold"
-                        color="primary"
+                        color="text.primary"
                     >
                         404
                     </Typography>
 
-                    <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
+                    <Typography variant="h4" fontWeight="bold" color="text.primary" gutterBottom>
                         Not Found
                     </Typography>
 
@@ -60,7 +60,7 @@ export default function NotFoundPage() {
 
                     <Button
                         variant="text"
-                        color="primary"
+                        color="text.primary"
                         fullWidth
                         sx={{ borderRadius: 2 }}
                         onClick={() => navigate(-1)}

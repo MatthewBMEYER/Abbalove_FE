@@ -35,24 +35,12 @@ const MainLayout = () => {
                     maxWidth: `calc(100vw - ${sidebarOpen ? 240 : 72}px)`, // Prevent expansion
                     display: "flex",
                     flexDirection: "column",
-                    gap: 2,
-                    px: 5,
-                    py: 2,
+                    p: 0,
                     overflow: "hidden", // Prevent this container from scrolling
                 }}
             >
                 {/* Topbar */}
-                <Box
-                    sx={{
-                        borderRadius: 2,
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
-                        bgcolor: "background.paper",
-                        p: 1.5,
-                        flexShrink: 0, // Don't shrink the topbar
-                    }}
-                >
-                    <Topbar />
-                </Box>
+                <Topbar />
 
                 {/* Main content - CONSTRAINED CONTAINER */}
                 <Box
@@ -78,7 +66,7 @@ const MainLayout = () => {
                             height: "100%",
                             minWidth: 0,
                             maxWidth: "100%",
-                            overflow: "auto", // Allow scrolling within the content area
+                            overflow: "auto",
                         }}
                     >
                         <Outlet />

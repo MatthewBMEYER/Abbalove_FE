@@ -55,14 +55,14 @@ const lightTheme = createTheme({
         MuiDialog: {
             styleOverrides: {
                 paper: {
-                    boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.04)',
                 },
             },
         },
         MuiDrawer: {
             styleOverrides: {
                 paper: {
-                    boxShadow: '0px 7px 40px rgba(0, 0, 0, 0.15)',
+                    boxShadow: '0px 7px 40px rgba(0, 0, 0, 0.06)',
                 },
             },
         },

@@ -23,7 +23,7 @@ import {
     Notifications,
     Dashboard,
     Settings,
-    Event,
+    CalendarViewDay as Event,
     Logout,
     Brightness4,
     Menu as MenuIcon,
@@ -170,7 +170,7 @@ const Sidebar = ({ isOpen, toggle, role }) => {
     const isActive = (path) => location.pathname.includes(path);
 
     const renderMenuItem = (item, key, hasChildren = false) => {
-        const active = isActive(item.path || '');
+        const active = isActive(item.path);
 
         const button = (
             <ListItemButton
@@ -180,7 +180,7 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                     }
                 }}
                 sx={{
-                    color: 'white',
+                    color: active ? 'primary.main' : 'text.primary',
                     justifyContent: isOpen ? 'flex-start' : 'center',
                     px: 2,
                     height: 45,
@@ -188,16 +188,16 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                     backgroundColor: hasChildren
                         ? 'transparent'
                         : active
-                            ? 'rgba(255,255,255,0.12)'
+                            ? 'rgba(255, 185, 185, 0.12)'
                             : 'transparent',
                     '&:hover': {
-                        backgroundColor: 'rgba(255,255,255,0.08)',
+                        backgroundColor: 'rgba(112, 112, 112, 0.08)',
                     },
                 }}
             >
                 <ListItemIcon
                     sx={{
-                        color: 'white',
+                        color: active ? 'primary.main' : 'text.primary',
                         minWidth: 0,
                         mr: isOpen ? 2 : 0,
                         justifyContent: 'center',
@@ -205,14 +205,16 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                 >
                     {item.icon}
                 </ListItemIcon>
-                {isOpen && (
-                    <ListItemText
-                        primary={item.label}
-                        primaryTypographyProps={{ noWrap: true }}
-                    />
-                )}
+                {
+                    isOpen && (
+                        <ListItemText
+                            primary={item.label}
+                            primaryTypographyProps={{ noWrap: true }}
+                        />
+                    )
+                }
                 {isOpen && hasChildren && (openMenus[key] ? <ExpandLess /> : <ExpandMore />)}
-            </ListItemButton>
+            </ListItemButton >
         );
 
         return item.path ? (
@@ -231,16 +233,14 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                bgcolor: 'primary.main',
-                color: 'white',
-                //boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
-                boxShadow: theme.palette.mode === 'dark'
-                    ? '0 4px 50px rgba(238, 90, 87, 0.48)'
-                    : '0 4px 20px rgba(0, 0, 0, 0.1)',
+                bgcolor: 'background.default',
+                color: 'text.primary',
                 overflow: 'hidden',
                 scrollbarWidth: 'none',
-                py: 2,
+                pb: 0,
                 width: isOpen ? 240 : 72,
+                borderRight: '1px solid',
+                borderColor: 'divider',
                 transition: 'width 0.2s',
             }}
         >
@@ -250,27 +250,29 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                 display="flex"
                 alignItems="center"
                 justifyContent="space-between"
-                height={40}
-                mb={5}
+                height={64}
             >
                 {/* only render on open */}
+                <IconButton onClick={toggle} sx={{ color: 'text.primary', justifyContent: isOpen ? 'flex-start' : 'center' }}>
+                    {isOpen ? <Close /> : <MenuIcon />}
+                </IconButton>
+
                 {isOpen && (
-                    <Typography variant="h6" fontWeight="bold" noWrap>
+                    <Typography variant="h6" fontWeight="bold" noWrap color="primary.main" sx={{ pr: 5 }}>
                         Abbalove
                     </Typography>
                 )}
-                <IconButton onClick={toggle} sx={{ color: 'white', justifyContent: isOpen ? 'flex-start' : 'center' }}>
-                    {isOpen ? <Close /> : <MenuIcon />}
-                </IconButton>
+
             </Box>
 
+            <Divider sx={{ borderColor: 'divider', mb: 3 }} />
+
             {/* === MAIN MENUS SECTION === */}
-            <Box flexGrow={1} overflow="hidden" mt={1}>
+            <Box flexGrow={1} overflow="hidden" mt={0}>
                 <List>
                     {Object.entries(menuConfig).map(([key, item]) => {
                         const hasChildren = !!item.children;
 
-                        // 🔐 Role-based visibility
                         if (item.roles && !item.roles.includes(role)) {
                             return null;
                         }
@@ -298,9 +300,9 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                                                                 sx={{
                                                                     pl: isOpen ? 6 : 2,
                                                                     justifyContent: isOpen ? 'flex-start' : 'center',
-                                                                    backgroundColor: childActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                                                                    backgroundColor: childActive ? 'rgba(255, 146, 146, 0.12)' : 'transparent',
                                                                     '&:hover': {
-                                                                        backgroundColor: 'rgba(255,255,255,0.08)',
+                                                                        backgroundColor: 'rgba(75, 75, 75, 0.075)',
                                                                     },
                                                                 }}
                                                             >
@@ -309,7 +311,7 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                                                                     primaryTypographyProps={{
                                                                         noWrap: true,
                                                                         sx: {
-                                                                            color: 'white',
+                                                                            color: 'text.primary',
                                                                             display: isOpen ? 'block' : 'none',
                                                                         },
                                                                     }}
@@ -330,7 +332,7 @@ const Sidebar = ({ isOpen, toggle, role }) => {
 
             {/* === FOOTER MENUS SECTION === */}
             <Box>
-                <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 1 }} />
+                <Divider sx={{ borderColor: 'divider', my: 1 }} />
                 <List>
                     {Object.entries(footerConfig).map(([key, item]) => (
                         <Box key={key}>
@@ -345,7 +347,7 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                     ))}
                 </List>
             </Box>
-        </Box>
+        </Box >
     );
 };
 

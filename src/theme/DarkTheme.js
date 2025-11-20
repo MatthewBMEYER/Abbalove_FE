@@ -7,8 +7,8 @@ const darkTheme = createTheme({
             main: '#EE5A57',
         },
         background: {
-            default: '#121212',
-            paper: '#1e1e1e',
+            paper: '#121212',
+            default: '#1e1e1e',
         },
         text: {
             primary: '#ffffff',
@@ -65,7 +65,7 @@ const darkTheme = createTheme({
         MuiDrawer: {
             styleOverrides: {
                 paper: {
-                    boxShadow: '0 4px 50px rgba(238, 90, 87, 0.2)',
+                    boxShadow: '0 4px 50px rgba(0, 0, 0, 0.2)',
                 },
             },
         },

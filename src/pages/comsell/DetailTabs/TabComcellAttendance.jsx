@@ -630,7 +630,8 @@ const TabComcellAttendance = ({ groupId, groupData }) => {
                                                     left: 0,
                                                     backgroundColor: 'background.paper',
                                                     zIndex: 1,
-                                                    borderRight: '1px solid rgba(224, 224, 224, 1)'
+                                                    borderRight: '1px solid',
+                                                    borderRightColor: 'divider',
                                                 }}
                                             >
                                                 <Box>
@@ -644,7 +645,7 @@ const TabComcellAttendance = ({ groupId, groupData }) => {
                                                 const currentStatus = getAttendanceStatus(user.id, event.id);
 
                                                 return (
-                                                    <TableCell key={event.id} align="center" sx={{ minWidth: 180, maxWidth: 180 }}>
+                                                    <TableCell key={event.id} align="center" sx={{ minWidth: 180, maxWidth: 180, backgroundColor: 'background.paper' }}>
                                                         {attendanceId ? (
                                                             <FormControlLabel
                                                                 control={

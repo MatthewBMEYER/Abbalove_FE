@@ -18,6 +18,8 @@ const pathTitleMap = [
     { match: "/worship/video/new", title: "New Video" },
     { match: "/worship/giving", title: "Giving" },
     { match: "/worship/video/manage", title: "Video Management" },
+    { match: "/calendar", title: "Calendar" },
+    { match: "/notifications", title: "Notifications" },
 
 ];
 
@@ -44,13 +46,35 @@ const Topbar = () => {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                px: 2,
-                backgroundColor: "background.paper",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                height: 64,
+                pr: 3,
+                flexShrink: 0,
+                py: 0,
+                backgroundColor: "background.default",
             }}
         >
-            <Typography variant="h5" fontWeight={550} color="primary.main">
+
+            <Typography
+                variant="h7"
+                fontWeight={400}
+                color="text.primary"
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    px: 2.5,
+                    height: "100%",
+                    borderRight: "1px solid",
+                    borderColor: "divider",
+                    backgroundColor: "background.paper",
+                }}
+            >
                 {title}
             </Typography>
+
+
+
 
             <Stack
                 direction="row"
