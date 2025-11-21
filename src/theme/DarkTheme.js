@@ -17,7 +17,7 @@ const darkTheme = createTheme({
     },
     shadows: [
         'none',
-        '0px 4px 20px rgba(0, 0, 0, 0.4)',
+        '0px 4px 20px rgba(0, 0, 0, 0.69)',
     ],
     typography: {
         fontFamily: 'Poppins, sans-serif',

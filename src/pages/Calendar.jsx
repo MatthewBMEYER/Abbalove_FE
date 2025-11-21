@@ -223,6 +223,7 @@ const Calendar = () => {
                                 p: { xs: 2, md: 3, lg: 4 },
                                 borderRadius: 3,
                                 height: '100%',
+                                minHeight: '700px',
                                 backgroundColor: 'background.default',
                                 border: `1px solid ${theme.palette.divider}`,
                                 boxShadow: 1,
@@ -292,8 +293,10 @@ const Calendar = () => {
                                     vertical: 'top',
                                     horizontal: 'left',
                                 }}
+                                elevation={1}
+                                sx={{ mt: 3 }}
                             >
-                                <Box sx={{ p: 2, minWidth: 300, backgroundColor: 'background.paper' }}>
+                                <Box sx={{ p: 2, minWidth: 300, backgroundColor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
                                     {/* Year Navigation */}
                                     <Box sx={{
                                         display: 'flex',
@@ -344,7 +347,7 @@ const Calendar = () => {
                                 flex: 1,
                                 display: 'flex',
                                 justifyContent: 'center',
-                                alignItems: 'flex-start',
+                                alignItems: 'center',
                                 paddingTop: 2,
                             }}>
                                 <DateCalendar
@@ -367,18 +370,8 @@ const Calendar = () => {
                                         width: { xs: '100%', md: '80%', lg: '90%' },
                                         height: '100%',
                                         maxWidth: 'none',
-                                        '& .MuiDayCalendar-monthContainer': {
-                                            overflow: 'hidden !important',
-                                            height: 'auto !important',
-                                        },
-                                        '& .MuiDayCalendar-monthContainer > div': {
-                                            height: 'auto !important',
-                                        },
                                         '& .MuiDayCalendar-weekContainer': {
                                             overflow: 'hidden !important',
-                                        },
-                                        '& .MuiDayCalendar-weekContainer > div': {
-                                            height: 'auto !important',
                                         },
                                         '& .MuiPickersDay-dayOutsideMonth': {
                                             color: 'text.secondary !important',
@@ -454,7 +447,7 @@ const Calendar = () => {
                     <Grid size={{ xs: 12, lg: 6 }}>
                         <Box
                             sx={{
-                                p: { xs: 2, md: 3 },
+                                //: { xs: 2, md: 3 },
                                 borderRadius: 3,
                                 height: '100%',
                                 position: { lg: 'sticky' },
@@ -540,7 +533,7 @@ const Calendar = () => {
                     </Grid>
                 </Grid>
             </Box>
-        </LocalizationProvider>
+        </LocalizationProvider >
     );
 };
 
