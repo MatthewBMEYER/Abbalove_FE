@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
-    Grid,
     List,
     ListItem,
     ListItemText,
@@ -13,6 +12,7 @@ import {
     IconButton,
     Popover,
     Stack,
+    Grid
 } from '@mui/material';
 import {
     Event as EventIcon,
@@ -111,42 +111,68 @@ const Calendar = () => {
 
     // Custom day renderer
     const CustomDay = (props) => {
-        const { day, selected = false, ...pickersDayProps } = props;
+        const {
+            day,
+            selected = false,
+            outsideCurrentMonth,
+            ...pickersDayProps
+        } = props;
+
         const hasEvents = hasEventsOnDate(day);
         const topEvent = getTopEventOnDate(day);
 
         return (
-            <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box
+                sx={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
                 <PickersDay
                     {...pickersDayProps}
                     day={day}
                     selected={selected}
+                    outsideCurrentMonth={outsideCurrentMonth}
                     sx={{
                         position: 'relative',
-                        backgroundColor: selected ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-                        border: selected ? `2px solid ${theme.palette.primary.main}` : '1px solid transparent',
+                        border: 'none',
+                        opacity: outsideCurrentMonth ? 0.35 : 1,
+                        color: outsideCurrentMonth
+                            ? alpha(theme.palette.text.primary, 0.4)
+                            : theme.palette.text.primary,
+                        backgroundColor: selected
+                            ? alpha(theme.palette.primary.main, 0.15)
+                            : 'transparent',
+
                         '&:hover': {
-                            backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                            backgroundColor: outsideCurrentMonth
+                                ? 'transparent'
+                                : alpha(theme.palette.primary.main, 0.07),
                         },
                         ...pickersDayProps.sx,
                     }}
                 />
+
+                {/* Event dot */}
                 {hasEvents && topEvent && (
                     <Box
                         sx={{
                             position: 'absolute',
-                            bottom: 4,
+                            bottom: 10,
                             width: 6,
                             height: 6,
                             borderRadius: '50%',
                             backgroundColor: getEventTypeColor(topEvent.type),
-                            boxShadow: '0 0 2px rgba(0,0,0,0.3)'
+                            boxShadow: '0 0 2px rgba(0,0,0,0.3)',
                         }}
                     />
                 )}
             </Box>
         );
     };
+
 
     const navigateMonth = (direction) => {
         const newDate = new Date(currentYear, currentMonth + direction, 1);
@@ -186,11 +212,12 @@ const Calendar = () => {
         <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Box sx={{
                 p: { xs: 2, md: 3 },
-                minHeight: '100vh',
+                width: '100%',
+                height: '100%'
             }}>
-                <Grid container spacing={3} sx={{ maxWidth: 1600, margin: '0 auto' }}>
+                <Grid container spacing={3} sx={{ height: '100%', maxWidth: 1600, margin: '0 auto' }}>
                     {/* Calendar Side - Left */}
-                    <Grid item xs={12} lg={7}>
+                    <Grid size={{ xs: 12, lg: 6 }}>
                         <Box
                             sx={{
                                 p: { xs: 2, md: 3, lg: 4 },
@@ -199,6 +226,8 @@ const Calendar = () => {
                                 backgroundColor: 'background.default',
                                 border: `1px solid ${theme.palette.divider}`,
                                 boxShadow: 1,
+                                display: 'flex',
+                                flexDirection: 'column'
                             }}
                         >
                             {/* Custom Calendar Header */}
@@ -292,14 +321,13 @@ const Calendar = () => {
                                     {/* Month Grid */}
                                     <Grid container spacing={1}>
                                         {months.map((month, index) => (
-                                            <Grid item xs={4} key={month}>
+                                            <Grid size={4} key={month}>
                                                 <Button
                                                     fullWidth
                                                     variant={currentMonth === index ? "contained" : "outlined"}
                                                     onClick={() => selectMonth(index)}
                                                     size="small"
                                                     sx={{
-                                                        py: 1.5,
                                                         fontWeight: currentMonth === index ? '600' : '400'
                                                     }}
                                                 >
@@ -311,11 +339,13 @@ const Calendar = () => {
                                 </Box>
                             </Popover>
 
-                            {/* Calendar */}
+                            {/* Calendar - Takes remaining space */}
                             <Box sx={{
+                                flex: 1,
                                 display: 'flex',
                                 justifyContent: 'center',
-                                mt: 2
+                                alignItems: 'flex-start',
+                                paddingTop: 2,
                             }}>
                                 <DateCalendar
                                     value={selectedDate}
@@ -329,23 +359,47 @@ const Calendar = () => {
                                         setCurrentYear(newDate.getFullYear());
                                     }}
                                     showDaysOutsideCurrentMonth
+                                    fixweeknumber={6}
                                     slots={{
                                         day: CustomDay,
                                     }}
                                     sx={{
-                                        width: '100%',
-                                        maxWidth: { xs: 400, md: 500, lg: 600, xl: 700 },
+                                        width: { xs: '100%', md: '80%', lg: '90%' },
+                                        height: '100%',
+                                        maxWidth: 'none',
+                                        '& .MuiDayCalendar-monthContainer': {
+                                            overflow: 'hidden !important',
+                                            height: 'auto !important',
+                                        },
+                                        '& .MuiDayCalendar-monthContainer > div': {
+                                            height: 'auto !important',
+                                        },
+                                        '& .MuiDayCalendar-weekContainer': {
+                                            overflow: 'hidden !important',
+                                        },
+                                        '& .MuiDayCalendar-weekContainer > div': {
+                                            height: 'auto !important',
+                                        },
+                                        '& .MuiPickersDay-dayOutsideMonth': {
+                                            color: 'text.secondary !important',
+                                        },
+                                        '& .MuiDayCalendar-slideTransition': {
+                                            overflow: 'visible !important',
+                                            height: 'auto !important',
+                                            minHeight: 'auto !important',
+                                        },
                                         '& .MuiPickersDay-root': {
-                                            borderRadius: 2,
+                                            borderRadius: 20,
                                             margin: { xs: 0.3, md: 0.5, lg: 0.7 },
-                                            fontSize: { xs: '0.875rem', lg: '1rem' },
+                                            fontSize: { xs: '0.75rem', lg: '1rem' },
                                             fontWeight: 400,
-                                            width: { xs: 36, md: 40, lg: 48, xl: 56 },
-                                            height: { xs: 36, md: 40, lg: 48, xl: 56 },
+                                            width: { xs: 36, md: 44, lg: 52 },
+                                            height: { xs: 36, md: 44, lg: 52 },
                                             color: 'text.primary',
+                                            textAlign: 'center',
                                         },
                                         '& .MuiPickersDay-today': {
-                                            border: `1px solid ${theme.palette.primary.main}`,
+                                            border: 'none !important',
                                             backgroundColor: alpha(theme.palette.primary.main, 0.08),
                                         },
                                         '& .Mui-selected': {
@@ -357,11 +411,13 @@ const Calendar = () => {
                                         },
                                         '& .MuiDayCalendar-weekDayLabel': {
                                             color: 'text.secondary',
-                                            fontSize: { xs: '0.75rem', lg: '0.875rem' },
-                                            width: { xs: 36, md: 40, lg: 48, xl: 56 },
-                                            height: { xs: 36, md: 40, lg: 48, xl: 56 },
+                                            margin: { xs: 0.3, md: 0.5, lg: 0.7 },
+                                            fontSize: { xs: '0.75rem', lg: '1rem' },
+                                            width: { xs: 36, md: 44, lg: 52 },
+                                            height: { xs: 36, md: 44, lg: 52 },
                                         },
                                     }}
+
                                 />
                             </Box>
 
@@ -369,9 +425,6 @@ const Calendar = () => {
                             <Box sx={{
                                 mt: 3,
                                 p: 2,
-                                backgroundColor: 'background.paper',
-                                borderRadius: 2,
-                                border: `1px solid ${theme.palette.divider}`
                             }}>
                                 <Typography variant="subtitle2" fontWeight="600" gutterBottom color="text.primary">
                                     Event Types:
@@ -398,92 +451,96 @@ const Calendar = () => {
                     </Grid>
 
                     {/* Events Side - Right */}
-                    <Grid item xs={12} lg={5}>
+                    <Grid size={{ xs: 12, lg: 6 }}>
                         <Box
                             sx={{
                                 p: { xs: 2, md: 3 },
                                 borderRadius: 3,
                                 height: '100%',
-                                backgroundColor: 'background.default',
-                                border: `1px solid ${theme.palette.divider}`,
-                                boxShadow: 1,
                                 position: { lg: 'sticky' },
-                                top: { lg: 20 }
+                                top: { lg: 20 },
+                                display: 'flex',
+                                flexDirection: 'column'
                             }}
                         >
                             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                                <EventIcon color="primary" />
-                                Events on {selectedDate.toLocaleDateString('en-US', {
-                                    weekday: 'long',
+                                {selectedDate.toLocaleDateString('en-ID', {
+                                    //weekday: 'long',
+                                    day: 'numeric',
                                     year: 'numeric',
                                     month: 'long',
-                                    day: 'numeric'
+
                                 })}
                             </Typography>
 
-                            {getEventsOnDate(selectedDate).length > 0 ? (
-                                <List dense sx={{ '& .MuiListItem-root': { px: 0 } }}>
-                                    {getEventsOnDate(selectedDate).map(event => (
-                                        <ListItem
-                                            key={event.id}
-                                            divider
-                                            sx={{
-                                                borderRadius: 2,
-                                                mb: 2,
-                                                py: 2,
-                                                backgroundColor: alpha(getEventTypeColor(event.type), 0.08),
-                                                border: `1px solid ${alpha(getEventTypeColor(event.type), 0.2)}`,
-                                                '&:last-child': { mb: 0 }
-                                            }}
-                                        >
-                                            <ListItemText
-                                                primary={
-                                                    <Typography variant="subtitle1" fontWeight="600">
-                                                        {event.title}
-                                                    </Typography>
-                                                }
-                                                secondary={
-                                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1 }}>
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            {event.time}
+                            <Box sx={{ flex: 1, overflow: 'auto' }}>
+                                {getEventsOnDate(selectedDate).length > 0 ? (
+                                    <List dense sx={{ '& .MuiListItem-root': { px: 2 } }}>
+                                        {getEventsOnDate(selectedDate).map(event => (
+                                            <ListItem
+                                                key={event.id}
+                                                divider
+                                                sx={{
+                                                    borderRadius: 2,
+                                                    mb: 2,
+                                                    py: 2,
+                                                    backgroundColor: alpha(getEventTypeColor(event.type), 0.08),
+                                                    border: `1px solid ${alpha(getEventTypeColor(event.type), 0.2)}`,
+                                                    '&:last-child': { mb: 0 }
+                                                }}
+                                            >
+                                                <ListItemText
+                                                    primary={
+                                                        <Typography variant="subtitle1" fontWeight="600">
+                                                            {event.title}
                                                         </Typography>
-                                                        <Typography variant="body2" color="text.secondary">•</Typography>
-                                                        <Chip
-                                                            label={getEventTypeLabel(event.type)}
-                                                            size="small"
-                                                            sx={{
-                                                                backgroundColor: getEventTypeColor(event.type),
-                                                                color: 'white',
-                                                                fontWeight: 'bold',
-                                                                fontSize: '0.75rem',
-                                                                height: 24
-                                                            }}
-                                                        />
-                                                    </Box>
-                                                }
-                                            />
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            ) : (
-                                <Box sx={{
-                                    py: 8,
-                                    textAlign: 'center',
-                                    backgroundColor: 'background.paper',
-                                    borderRadius: 2,
-                                    border: `1px dashed`,
-                                    borderColor: 'divider'
-                                }}>
-                                    <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                        No events scheduled for this day.
-                                    </Typography>
-                                </Box>
-                            )}
+                                                    }
+                                                    secondary={
+                                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1 }}>
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                {event.time}
+                                                            </Typography>
+                                                            <Typography variant="body2" color="text.secondary">•</Typography>
+                                                            <Chip
+                                                                label={getEventTypeLabel(event.type)}
+                                                                size="small"
+                                                                sx={{
+                                                                    backgroundColor: getEventTypeColor(event.type),
+                                                                    color: 'white',
+                                                                    fontWeight: 'bold',
+                                                                    fontSize: '0.75rem',
+                                                                    height: 24
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                    }
+                                                />
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                ) : (
+                                    <Box sx={{
+                                        py: 8,
+                                        textAlign: 'center',
+                                        backgroundColor: 'background.paper',
+                                        borderRadius: 2,
+                                        border: `1px dashed`,
+                                        borderColor: 'divider',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                            No events scheduled for this day.
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Box>
                         </Box>
                     </Grid>
-                </Grid >
-            </Box >
-        </LocalizationProvider >
+                </Grid>
+            </Box>
+        </LocalizationProvider>
     );
 };
 
