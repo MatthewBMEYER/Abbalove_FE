@@ -180,7 +180,7 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                     }
                 }}
                 sx={{
-                    color: active ? 'primary.main' : 'text.primary',
+                    color: active ? 'primary.main' : 'text.secondary',
                     justifyContent: isOpen ? 'flex-start' : 'center',
                     px: 2,
                     height: 45,
@@ -197,7 +197,7 @@ const Sidebar = ({ isOpen, toggle, role }) => {
             >
                 <ListItemIcon
                     sx={{
-                        color: active ? 'primary.main' : 'text.primary',
+                        color: active ? 'primary.main' : 'text.secondary',
                         minWidth: 0,
                         mr: isOpen ? 2 : 0,
                         justifyContent: 'center',
@@ -311,7 +311,7 @@ const Sidebar = ({ isOpen, toggle, role }) => {
                                                                     primaryTypographyProps={{
                                                                         noWrap: true,
                                                                         sx: {
-                                                                            color: 'text.primary',
+                                                                            color: childActive ? 'primary.main' : 'text.secondary',
                                                                             display: isOpen ? 'block' : 'none',
                                                                         },
                                                                     }}

@@ -12,7 +12,7 @@ const darkTheme = createTheme({
         },
         text: {
             primary: '#ffffff',
-            secondary: '#b0b0b0',
+            secondary: '#c9c9c9ff',
         },
     },
     shadows: [

@@ -18,6 +18,7 @@ import Dashboard from './pages/Dashboard';
 // import Schedule from './pages/worships/Schedule';
 // import Collections from './pages/worships/Collections';
 import Giving from './pages/worships/Giving';
+import Calendar from './pages/Calendar';
 // videos collections
 import VideoCollection from './pages/worships/videos/videosCollection';
 import NewVideo from './pages/worships/videos/newVideo';
@@ -38,10 +39,11 @@ import MemberDetail from './pages/teams/MemberDetail';
 import AllComsell from './pages/comsell/AllComcell';
 import MyComsell from './pages/comsell/MyComcell';
 import ComcellGroupDetail from './pages/comsell/ComcellGroupDetail';
-
+import CreateEvent from './pages/comsell/DetailTabs/CreateEvent';
 // 404
 import NotFoundPage from './pages/Uavailable404';
-import Calendar from './pages/Calendar';
+
+
 
 
 
@@ -106,6 +108,7 @@ function App() {
           <Route path="comcell/all" element={<AllComsell />} />
           <Route path="comcell/detail/:groupId" element={<ComcellGroupDetail />} />
           <Route path="comcell/mycomcell" element={<MyComsell />} />
+          <Route path="/comcell/:groupId/events/create" element={<CreateEvent />} />
 
 
 

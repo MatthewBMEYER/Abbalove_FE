@@ -15,7 +15,6 @@ import {
     DialogActions,
     Alert,
     CircularProgress,
-    Chip,
     Paper,
     Divider,
     Menu,
@@ -28,15 +27,16 @@ import {
     InputAdornment,
     Badge
 } from "@mui/material";
-import { Add, Edit, Delete, MoreVert, Event, LocationOn, Schedule, Search, FilterList, Clear } from "@mui/icons-material";
+import { Edit, Delete, MoreVert, LocationOn, Schedule, Search, FilterList, Clear } from "@mui/icons-material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { useNavigate } from "react-router-dom";
 import api from "../../../api";
 import { useUserStore } from "../../../store/userStore";
 
 const TabComcellEvents = ({ groupId, groupData }) => {
-    // Get user data from store
+    const navigate = useNavigate();
     const { user } = useUserStore();
 
     // State management
@@ -47,26 +47,9 @@ const TabComcellEvents = ({ groupId, groupData }) => {
     const [viewMode, setViewMode] = useState("upcoming"); // "upcoming" or "history"
 
     // Dialog states
-    const [openEventDialog, setOpenEventDialog] = useState(false);
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [openFilterDialog, setOpenFilterDialog] = useState(false);
-    const [editingEvent, setEditingEvent] = useState(null);
     const [eventToDelete, setEventToDelete] = useState(null);
-
-    // Event form states
-    const [eventName, setEventName] = useState("");
-    const [eventType, setEventType] = useState("comcell");
-    const [startTime, setStartTime] = useState(() => {
-        const defaultStart = new Date();
-        defaultStart.setHours(18, 0, 0, 0); // 6 PM
-        return defaultStart;
-    });
-    const [endTime, setEndTime] = useState(() => {
-        const defaultEnd = new Date();
-        defaultEnd.setHours(20, 0, 0, 0); // 8 PM
-        return defaultEnd;
-    });
-    const [location, setLocation] = useState("");
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState("");
@@ -121,17 +104,6 @@ const TabComcellEvents = ({ groupId, groupData }) => {
         { value: 'other', label: 'Other' }
     ];
 
-    // Format date for display
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
-
     // Format time for display
     const formatTime = (dateString) => {
         const date = new Date(dateString);
@@ -142,21 +114,12 @@ const TabComcellEvents = ({ groupId, groupData }) => {
         });
     };
 
-    // Format month-year for section headers
-    const formatMonthYear = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric'
-        });
-    };
-
     // Fetch events
     const fetchEvents = async () => {
         setLoading(true);
         setError(null);
         try {
-            const eventsRes = await api.get(`/events/getAllEventByGroupId/${groupId}`);
+            const eventsRes = await api.get(`/events/getComcellEventsByGroupId/${groupId}`);
 
             if (eventsRes.data.success) {
                 const allEvents = eventsRes.data.data || [];
@@ -253,24 +216,6 @@ const TabComcellEvents = ({ groupId, groupData }) => {
         }));
     };
 
-    // Handle edit event
-    const handleEditClick = (event) => {
-        if (!canModifyEvents()) {
-            setError('You do not have permission to edit events');
-            handleMenuClose(event.id);
-            return;
-        }
-
-        setEditingEvent(event);
-        setEventName(event.name);
-        setEventType(event.type || 'comcell');
-        setStartTime(new Date(event.start_time));
-        setEndTime(new Date(event.end_time));
-        setLocation(event.location || '');
-        setOpenEventDialog(true);
-        handleMenuClose(event.id);
-    };
-
     // Handle delete event
     const handleDeleteClick = (event) => {
         if (!canModifyEvents()) {
@@ -282,72 +227,6 @@ const TabComcellEvents = ({ groupId, groupData }) => {
         setEventToDelete(event);
         setOpenDeleteDialog(true);
         handleMenuClose(event.id);
-    };
-
-    // Create or update event
-    const handleSaveEvent = async () => {
-        // Check authorization
-        if (!canModifyEvents()) {
-            setError('You do not have permission to modify events');
-            return;
-        }
-
-        // Clear previous errors
-        setError(null);
-
-        if (!eventName.trim()) {
-            setError('Please enter an event name');
-            return;
-        }
-
-        // Validate end time is after start time
-        if (new Date(endTime) <= new Date(startTime)) {
-            setError('End time must be after start time');
-            return;
-        }
-
-        try {
-            if (editingEvent) {
-                // Update existing event
-                const res = await api.put(`/events/updateEvent/${editingEvent.id}`, {
-                    name: eventName.trim(),
-                    type: eventType,
-                    groupId: groupId,
-                    startTime: new Date(startTime).toISOString(),
-                    endTime: new Date(endTime).toISOString(),
-                    location: location.trim() || "TBD"
-                });
-
-                if (res.data.success) {
-                    setSuccessMessage('Event updated successfully');
-                    await fetchEvents(); // Refresh data
-                    handleCloseEventDialog();
-                } else {
-                    setError(res.data.message || 'Failed to update event');
-                }
-            } else {
-                // Create new event
-                const res = await api.post('/events/createEvent', {
-                    name: eventName.trim(),
-                    type: eventType,
-                    groupId: groupId,
-                    startTime: new Date(startTime).toISOString(),
-                    endTime: new Date(endTime).toISOString(),
-                    location: location.trim() || "TBD"
-                });
-
-                if (res.data.success) {
-                    setSuccessMessage('Event created successfully');
-                    await fetchEvents(); // Refresh data
-                    handleCloseEventDialog();
-                } else {
-                    setError(res.data.message || 'Failed to create event');
-                }
-            }
-        } catch (err) {
-            console.error('Error saving event:', err);
-            setError(err.response?.data?.message || err.message || 'Failed to save event');
-        }
     };
 
     // Delete event
@@ -378,36 +257,9 @@ const TabComcellEvents = ({ groupId, groupData }) => {
         }
     };
 
-    // Dialog helpers
-    const handleCloseEventDialog = () => {
-        setOpenEventDialog(false);
-        setEditingEvent(null);
-        setEventName("");
-        setEventType("comcell");
-        // Set default times: today at 6 PM for start, 8 PM for end
-        const defaultStart = new Date();
-        defaultStart.setHours(18, 0, 0, 0);
-        const defaultEnd = new Date();
-        defaultEnd.setHours(20, 0, 0, 0);
-        setStartTime(defaultStart);
-        setEndTime(defaultEnd);
-        setLocation("");
-        setError(null); // Clear any errors when closing dialog
-    };
-
-    const handleAddEvent = () => {
-        setEditingEvent(null);
-        setEventName("");
-        setEventType("comcell");
-        // Set default times: today at 6 PM for start, 8 PM for end
-        const defaultStart = new Date();
-        defaultStart.setHours(18, 0, 0, 0);
-        const defaultEnd = new Date();
-        defaultEnd.setHours(20, 0, 0, 0);
-        setStartTime(defaultStart);
-        setEndTime(defaultEnd);
-        setLocation("");
-        setOpenEventDialog(true);
+    // Navigate to create event page
+    const handleCreateEvent = () => {
+        navigate(`/comcell/${groupId}/events/create`);
     };
 
     // Clear messages after some time
@@ -491,11 +343,10 @@ const TabComcellEvents = ({ groupId, groupData }) => {
                             <span>
                                 <Button
                                     variant="contained"
-                                    startIcon={<Add />}
-                                    onClick={handleAddEvent}
+                                    onClick={handleCreateEvent}
                                     disabled={!hasEditPermission}
                                 >
-                                    Add Event
+                                    Create Event
                                 </Button>
                             </span>
                         </Tooltip>
@@ -548,8 +399,7 @@ const TabComcellEvents = ({ groupId, groupData }) => {
                             {hasEditPermission && !hasActiveFilters() && (
                                 <Button
                                     variant="outlined"
-                                    startIcon={<Add />}
-                                    onClick={handleAddEvent}
+                                    onClick={handleCreateEvent}
                                     sx={{ mt: 1 }}
                                 >
                                     Create Your First Event
@@ -645,13 +495,13 @@ const TabComcellEvents = ({ groupId, groupData }) => {
                                                         {eventTypeOptions.find(t => t.value === event.type)?.label || event.type}
                                                     </Typography>
 
-
                                                     {/* Created Date */}
                                                     <Typography variant="caption" color="text.secondary" textAlign="right">
                                                         Created {new Date(event.created_at).toLocaleDateString()}
                                                     </Typography>
                                                 </Box>
-                                                {/* Menu Button - Separate from the aligned items */}
+
+                                                {/* Menu Button */}
                                                 {hasEditPermission && (
                                                     <IconButton
                                                         size="small"
@@ -662,19 +512,12 @@ const TabComcellEvents = ({ groupId, groupData }) => {
                                                     </IconButton>
                                                 )}
 
-
                                                 {/* Menu */}
                                                 <Menu
                                                     anchorEl={anchorEls[event.id]}
                                                     open={Boolean(anchorEls[event.id])}
                                                     onClose={() => handleMenuClose(event.id)}
                                                 >
-                                                    <MenuItem onClick={() => handleEditClick(event)}>
-                                                        <ListItemIcon>
-                                                            <Edit fontSize="small" />
-                                                        </ListItemIcon>
-                                                        <ListItemText>Edit Event</ListItemText>
-                                                    </MenuItem>
                                                     <MenuItem onClick={() => handleDeleteClick(event)}>
                                                         <ListItemIcon>
                                                             <Delete fontSize="small" color="error" />
@@ -770,88 +613,6 @@ const TabComcellEvents = ({ groupId, groupData }) => {
                         </Button>
                         <Button onClick={clearFilters} color="inherit">
                             Clear Filters
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-
-                {/* Add/Edit Event Dialog */}
-                <Dialog open={openEventDialog} onClose={handleCloseEventDialog} maxWidth="sm" fullWidth>
-                    <DialogTitle>
-                        {editingEvent ? 'Edit Event' : 'Add New Event'}
-                    </DialogTitle>
-                    <DialogContent>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                            <TextField
-                                label="Event Name"
-                                value={eventName}
-                                onChange={(e) => setEventName(e.target.value)}
-                                fullWidth
-                                placeholder="e.g., Weekly Meeting, Bible Study"
-                                required
-                            />
-
-                            <FormControl fullWidth>
-                                <InputLabel>Event Type</InputLabel>
-                                <Select
-                                    value={eventType}
-                                    label="Event Type"
-                                    onChange={(e) => setEventType(e.target.value)}
-                                >
-                                    {eventTypeOptions.map(type => (
-                                        <MenuItem key={type.value} value={type.value}>
-                                            {type.label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-
-                            <TextField
-                                label="Location"
-                                value={location}
-                                onChange={(e) => setLocation(e.target.value)}
-                                fullWidth
-                                placeholder="e.g., Conference Room A, Living Room"
-                            />
-
-                            <DateTimePicker
-                                label="Start Date & Time"
-                                value={startTime}
-                                onChange={(date) => {
-                                    setStartTime(date);
-                                    // Auto-adjust end time to be 2 hours later if it's not already set properly
-                                    if (!endTime || endTime <= date) {
-                                        const newEndTime = new Date(date);
-                                        newEndTime.setHours(newEndTime.getHours() + 2);
-                                        setEndTime(newEndTime);
-                                    }
-                                }}
-                                ampm={false}
-                                format="dd/MM/yyyy HH:mm"
-                            />
-
-                            <DateTimePicker
-                                label="End Date & Time"
-                                value={endTime}
-                                onChange={(date) => {
-                                    setEndTime(date);
-                                }}
-                                minDateTime={startTime}
-                                ampm={false}
-                                format="dd/MM/yyyy HH:mm"
-                            />
-                        </Box>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handleCloseEventDialog}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSaveEvent}
-                            variant="contained"
-                            disabled={!eventName.trim()}
-                            sx={{ minWidth: 100 }}
-                        >
-                            {editingEvent ? 'Update' : 'Create'}
                         </Button>
                     </DialogActions>
                 </Dialog>

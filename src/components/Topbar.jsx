@@ -12,21 +12,49 @@ const pathTitleMap = [
     { match: "/teams/worship", title: "Worship Teams" },
     { match: "/teams/other", title: "Other Teams" },
     { match: "/comcell/all", title: "Comcell Groups" },
-    { match: "/comcell/my", title: "My Comcell" },
-    //{ match: "/worship/schedule", title: "Worship Schedule" },
+    { match: "/comcell/mycomcell", title: "My Comcell" },
     { match: "/worship/video/collections", title: "Video Collections" },
     { match: "/worship/video/new", title: "New Video" },
     { match: "/worship/giving", title: "Giving" },
     { match: "/worship/video/manage", title: "Video Management" },
     { match: "/calendar", title: "Calendar" },
     { match: "/notifications", title: "Notifications" },
-
+    { match: "/comcell/:id/events/create", title: "Create Comcell Event" },
 ];
 
 const generateTitle = (path) => {
-    const lowerPath = path.toLowerCase();
-    const matched = pathTitleMap.find(({ match }) => lowerPath.includes(match));
-    return matched ? matched.title : "Welcome to Abbalove";
+    // Try exact matches first
+    const exactMatch = pathTitleMap.find(({ match }) => path === match);
+    if (exactMatch) return exactMatch.title;
+
+    // Then try pattern matches for dynamic routes
+    const patternMatch = pathTitleMap.find(({ match }) => {
+        if (match.includes(':id')) {
+            const patternSegments = match.split('/');
+            const pathSegments = path.split('/');
+
+            // Must have same number of segments
+            if (patternSegments.length !== pathSegments.length) return false;
+
+            // Check each segment matches
+            for (let i = 0; i < patternSegments.length; i++) {
+                const patternSeg = patternSegments[i];
+                const pathSeg = pathSegments[i];
+
+                if (patternSeg.startsWith(':')) {
+                    // Dynamic segment - must not be empty
+                    if (!pathSeg) return false;
+                } else if (patternSeg !== pathSeg) {
+                    // Static segment must match exactly
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    });
+
+    return patternMatch ? patternMatch.title : "Welcome to Abbalove";
 };
 
 const Topbar = () => {
@@ -55,7 +83,6 @@ const Topbar = () => {
                 backgroundColor: "background.default",
             }}
         >
-
             <Typography
                 variant="h7"
                 fontWeight={400}
@@ -72,9 +99,6 @@ const Topbar = () => {
             >
                 {title}
             </Typography>
-
-
-
 
             <Stack
                 direction="row"

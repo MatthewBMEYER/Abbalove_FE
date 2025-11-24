@@ -12,7 +12,7 @@ const lightTheme = createTheme({
         },
         text: {
             primary: '#121212',
-            secondary: '#757575',
+            secondary: '#5e5e5eff',
         },
     },
     shadows: [

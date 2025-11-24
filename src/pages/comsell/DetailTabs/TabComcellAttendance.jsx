@@ -30,14 +30,12 @@ import {
     Tooltip
 } from "@mui/material";
 import { Add, Delete, Save, MoreVert, Lock } from "@mui/icons-material";
-import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { useNavigate } from "react-router-dom";
 import api from "../../../api";
 import { useUserStore } from "../../../store/userStore";
 
 const TabComcellAttendance = ({ groupId, groupData }) => {
-    // Get user data from store
+    const navigate = useNavigate();
     const { user } = useUserStore();
 
     // State management
@@ -51,21 +49,8 @@ const TabComcellAttendance = ({ groupId, groupData }) => {
     const [successMessage, setSuccessMessage] = useState("");
 
     // Dialog states
-    const [openEventDialog, setOpenEventDialog] = useState(false);
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [eventToDelete, setEventToDelete] = useState(null);
-    const [eventName, setEventName] = useState("");
-    const [startTime, setStartTime] = useState(() => {
-        const defaultStart = new Date();
-        defaultStart.setHours(18, 0, 0, 0); // 6 PM
-        return defaultStart;
-    });
-    const [endTime, setEndTime] = useState(() => {
-        const defaultEnd = new Date();
-        defaultEnd.setHours(20, 0, 0, 0); // 8 PM
-        return defaultEnd;
-    });
-    const [location, setLocation] = useState("");
 
     // Menu states for each event
     const [anchorEls, setAnchorEls] = useState({});
@@ -168,56 +153,9 @@ const TabComcellAttendance = ({ groupId, groupData }) => {
         }
     };
 
-    // Create new event
-    const handleAddEvent = async () => {
-        // Check authorization
-        if (!canModifyAttendance()) {
-            setError('You do not have permission to create events');
-            return;
-        }
-
-        // Clear previous errors
-        setError(null);
-
-        if (!eventName.trim()) {
-            setError('Please enter an event name');
-            return;
-        }
-
-        // Validate that start time is in selected month/year
-        const eventDate = new Date(startTime);
-        if (eventDate.getMonth() + 1 !== selectedMonth || eventDate.getFullYear() !== selectedYear) {
-            setError('Event date must be in the selected month and year');
-            return;
-        }
-
-        // Validate end time is after start time
-        if (new Date(endTime) <= new Date(startTime)) {
-            setError('End time must be after start time');
-            return;
-        }
-
-        try {
-            const res = await api.post('/events/createEvent', {
-                name: eventName.trim(),
-                type: "comcell",
-                groupId: groupId,
-                startTime: new Date(startTime).toISOString(),
-                endTime: new Date(endTime).toISOString(),
-                location: location.trim() || "TBD"
-            });
-
-            if (res.data.success) {
-                setSuccessMessage('Event created successfully');
-                await fetchData(); // Refresh data
-                handleCloseEventDialog();
-            } else {
-                setError(res.data.message || 'Failed to create event');
-            }
-        } catch (err) {
-            console.error('Error creating event:', err);
-            setError(err.response?.data?.message || err.message || 'Failed to create event');
-        }
+    // Navigate to create event page
+    const handleCreateEvent = () => {
+        navigate(`/comcell/${groupId}/events/create`);
     };
 
     // Handle menu operations
@@ -353,21 +291,6 @@ const TabComcellAttendance = ({ groupId, groupData }) => {
         }
     };
 
-    // Dialog helpers
-    const handleCloseEventDialog = () => {
-        setOpenEventDialog(false);
-        setEventName("");
-        // Set default times: today at 6 PM for start, 8 PM for end
-        const defaultStart = new Date();
-        defaultStart.setHours(18, 0, 0, 0);
-        const defaultEnd = new Date();
-        defaultEnd.setHours(20, 0, 0, 0);
-        setStartTime(defaultStart);
-        setEndTime(defaultEnd);
-        setLocation("");
-        setError(null); // Clear any errors when closing dialog
-    };
-
     // Clear messages after some time
     useEffect(() => {
         if (successMessage) {
@@ -422,372 +345,293 @@ const TabComcellAttendance = ({ groupId, groupData }) => {
     const permissionLevel = getUserPermissionLevel();
 
     return (
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Box py={3}>
-                {/* Permission Status Display */}
-                {!hasEditPermission && (
-                    <Alert severity="info" sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Lock fontSize="small" />
-                            <Typography variant="body2">
-                                You are viewing in read-only mode. Only group leaders, co-leaders, and masters can modify attendance data.
-                                {permissionLevel !== 'none' && ` Your role: ${permissionLevel}`}
-                            </Typography>
-                        </Box>
-                    </Alert>
-                )}
-
-                {/* Controls */}
-                <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", justifyContent: "space-between" }}>
-                    {/* Month/Year Selection */}
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                        <FormControl sx={{ minWidth: 120 }}>
-                            <InputLabel>Month</InputLabel>
-                            <Select
-                                value={selectedMonth}
-                                label="Month"
-                                onChange={(e) => setSelectedMonth(e.target.value)}
-                            >
-                                {monthOptions.map(month => (
-                                    <MenuItem key={month.value} value={month.value}>
-                                        {month.label}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <FormControl sx={{ minWidth: 100 }}>
-                            <InputLabel>Year</InputLabel>
-                            <Select
-                                value={selectedYear}
-                                label="Year"
-                                onChange={(e) => setSelectedYear(e.target.value)}
-                            >
-                                {yearOptions.map(year => (
-                                    <MenuItem key={year} value={year}>
-                                        {year}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+        <Box py={3}>
+            {/* Permission Status Display */}
+            {!hasEditPermission && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Lock fontSize="small" />
+                        <Typography variant="body2">
+                            You are viewing in read-only mode. Only group leaders, co-leaders, and masters can modify attendance data.
+                            {permissionLevel !== 'none' && ` Your role: ${permissionLevel}`}
+                        </Typography>
                     </Box>
+                </Alert>
+            )}
 
-                    <Box>
-                        {/* Add Event Button */}
-                        <Tooltip title={!hasEditPermission ? "Only group leaders, co-leaders, and masters can add events" : ""}>
-                            <span>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={hasEditPermission ? <Add /> : <Lock />}
-                                    onClick={() => setOpenEventDialog(true)}
-                                    sx={{ mr: 1 }}
-                                    disabled={!hasEditPermission}
-                                >
-                                    Add Event
-                                </Button>
-                            </span>
-                        </Tooltip>
+            {/* Controls */}
+            <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", justifyContent: "space-between" }}>
+                {/* Month/Year Selection */}
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <FormControl sx={{ minWidth: 120 }}>
+                        <InputLabel>Month</InputLabel>
+                        <Select
+                            value={selectedMonth}
+                            label="Month"
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                        >
+                            {monthOptions.map(month => (
+                                <MenuItem key={month.value} value={month.value}>
+                                    {month.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
 
-                        {/* Save Button */}
-                        <Tooltip title={!hasEditPermission ? "Only group leaders, co-leaders, and masters can save attendance" : ""}>
-                            <span>
-                                <Button
-                                    variant="contained"
-                                    startIcon={saving ? <CircularProgress size={20} /> : (hasEditPermission ? <Save /> : <Lock />)}
-                                    onClick={handleSaveAttendance}
-                                    disabled={!hasEditPermission || saving || filteredEvents.length === 0}
-                                >
-                                    {saving ? 'Saving...' : 'Save Attendance'}
-                                </Button>
-                            </span>
-                        </Tooltip>
-                    </Box>
+                    <FormControl sx={{ minWidth: 100 }}>
+                        <InputLabel>Year</InputLabel>
+                        <Select
+                            value={selectedYear}
+                            label="Year"
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                        >
+                            {yearOptions.map(year => (
+                                <MenuItem key={year} value={year}>
+                                    {year}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                 </Box>
 
-                {/* Success Message */}
-                {successMessage && (
-                    <Alert severity="success" sx={{ mb: 2 }}>
-                        {successMessage}
-                    </Alert>
-                )}
+                <Box>
+                    {/* Create Event Button */}
+                    <Tooltip title={!hasEditPermission ? "Only group leaders, co-leaders, and masters can create events" : ""}>
+                        <span>
+                            <Button
+                                variant="outlined"
+                                startIcon={hasEditPermission ? <Add /> : <Lock />}
+                                onClick={handleCreateEvent}
+                                sx={{ mr: 1 }}
+                                disabled={!hasEditPermission}
+                            >
+                                Create Event
+                            </Button>
+                        </span>
+                    </Tooltip>
 
-                {/* Error Alert */}
-                {error && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                        {error}
-                    </Alert>
-                )}
+                    {/* Save Button */}
+                    <Tooltip title={!hasEditPermission ? "Only group leaders, co-leaders, and masters can save attendance" : ""}>
+                        <span>
+                            <Button
+                                variant="contained"
+                                startIcon={saving ? <CircularProgress size={20} /> : (hasEditPermission ? <Save /> : <Lock />)}
+                                onClick={handleSaveAttendance}
+                                disabled={!hasEditPermission || saving || filteredEvents.length === 0}
+                            >
+                                {saving ? 'Saving...' : 'Save Attendance'}
+                            </Button>
+                        </span>
+                    </Tooltip>
+                </Box>
+            </Box>
 
-                {/* Attendance Table - FIXED OVERFLOW */}
-                <Paper sx={{ width: '100%', overflow: 'hidden', boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.05)' }}>
-                    <TableContainer sx={{
-                        maxHeight: '70vh',
-                        overflowX: 'auto',
-                        overflowY: 'auto',
-                        // Hide scrollbars but keep scrolling functionality
-                        '&::-webkit-scrollbar': {
-                            display: 'none', // Chrome, Safari, Edge
-                        },
-                        '-ms-overflow-style': 'none', // Internet Explorer 10+
-                        'scrollbar-width': 'none', // Firefox
-                    }}>
-                        <Table stickyHeader>
-                            <TableHead>
-                                <TableRow>
+            {/* Success Message */}
+            {successMessage && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                    {successMessage}
+                </Alert>
+            )}
+
+            {/* Error Alert */}
+            {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {error}
+                </Alert>
+            )}
+
+            {/* Attendance Table - FIXED OVERFLOW */}
+            <Paper sx={{ width: '100%', overflow: 'hidden', boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.05)' }}>
+                <TableContainer sx={{
+                    maxHeight: '70vh',
+                    overflowX: 'auto',
+                    overflowY: 'auto',
+                    // Hide scrollbars but keep scrolling functionality
+                    '&::-webkit-scrollbar': {
+                        display: 'none', // Chrome, Safari, Edge
+                    },
+                    '-ms-overflow-style': 'none', // Internet Explorer 10+
+                    'scrollbar-width': 'none', // Firefox
+                }}>
+                    <Table stickyHeader>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell
+                                    sx={{
+                                        fontWeight: 'bold',
+                                        minWidth: 220,
+                                        maxWidth: 220,
+                                        position: 'sticky',
+                                        left: 0,
+                                        backgroundColor: 'background.paper',
+                                        zIndex: 100,
+                                    }}
+                                >
+                                    Team Member
+                                </TableCell>
+                                {filteredEvents.map(event => (
                                     <TableCell
+                                        key={event.id}
                                         sx={{
                                             fontWeight: 'bold',
-                                            minWidth: 220,
-                                            maxWidth: 220,
-                                            position: 'sticky',
-                                            left: 0,
-                                            backgroundColor: 'background.paper',
-                                            zIndex: 100,
+                                            minWidth: 180,
+                                            maxWidth: 180,
+                                            backgroundColor: 'background.paper'
                                         }}
                                     >
-                                        Team Member
+                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                            <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                                                <Typography variant="body2" noWrap title={event.name}>
+                                                    {event.name}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary" display="block">
+                                                    {new Date(event.start_time).toLocaleDateString()}
+                                                </Typography>
+                                                <Typography variant="caption" display="block" color="text.secondary">
+                                                    {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </Typography>
+                                            </Box>
+                                            {hasEditPermission && (
+                                                <>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => handleMenuOpen(event.id, e)}
+                                                    >
+                                                        <MoreVert fontSize="small" />
+                                                    </IconButton>
+                                                    <Menu
+                                                        anchorEl={anchorEls[event.id]}
+                                                        open={Boolean(anchorEls[event.id])}
+                                                        onClose={() => handleMenuClose(event.id)}
+                                                    >
+                                                        <MenuItem onClick={() => handleDeleteClick(event)}>
+                                                            <ListItemIcon>
+                                                                <Delete fontSize="small" color="error" />
+                                                            </ListItemIcon>
+                                                            <ListItemText>Delete Event</ListItemText>
+                                                        </MenuItem>
+                                                    </Menu>
+                                                </>
+                                            )}
+                                        </Box>
                                     </TableCell>
-                                    {filteredEvents.map(event => (
+                                ))}
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {loading ? (
+                                <TableRow>
+                                    <TableCell colSpan={filteredEvents.length + 1} align="center">
+                                        <CircularProgress />
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredEvents.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={2} align="center">
+                                        <Typography color="text.secondary">
+                                            No events found for {monthOptions.find(m => m.value === selectedMonth)?.label} {selectedYear}
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            ) : allUsers.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={filteredEvents.length + 1} align="center">
+                                        <Typography color="text.secondary">
+                                            No attendance records found
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                allUsers.map(user => (
+                                    <TableRow key={user.id}>
                                         <TableCell
-                                            key={event.id}
                                             sx={{
-                                                fontWeight: 'bold',
-                                                minWidth: 180,
-                                                maxWidth: 180,
-                                                backgroundColor: 'background.paper'
+                                                minWidth: 220,
+                                                maxWidth: 220,
+                                                position: 'sticky',
+                                                left: 0,
+                                                backgroundColor: 'background.paper',
+                                                zIndex: 1,
+                                                borderRight: '1px solid',
+                                                borderRightColor: 'divider',
                                             }}
                                         >
-                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                                                <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                                                    <Typography variant="body2" noWrap title={event.name}>
-                                                        {event.name}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary" display="block">
-                                                        {new Date(event.start_time).toLocaleDateString()}
-                                                    </Typography>
-                                                    <Typography variant="caption" display="block" color="text.secondary">
-                                                        {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </Typography>
-                                                </Box>
-                                                {hasEditPermission && (
-                                                    <>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={(e) => handleMenuOpen(event.id, e)}
-                                                        >
-                                                            <MoreVert fontSize="small" />
-                                                        </IconButton>
-                                                        <Menu
-                                                            anchorEl={anchorEls[event.id]}
-                                                            open={Boolean(anchorEls[event.id])}
-                                                            onClose={() => handleMenuClose(event.id)}
-                                                        >
-                                                            <MenuItem onClick={() => handleDeleteClick(event)}>
-                                                                <ListItemIcon>
-                                                                    <Delete fontSize="small" color="error" />
-                                                                </ListItemIcon>
-                                                                <ListItemText>Delete Event</ListItemText>
-                                                            </MenuItem>
-                                                        </Menu>
-                                                    </>
-                                                )}
+                                            <Box>
+                                                <Typography variant="body1" noWrap title={user.name}>
+                                                    {user.name}
+                                                </Typography>
                                             </Box>
                                         </TableCell>
-                                    ))}
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={filteredEvents.length + 1} align="center">
-                                            <CircularProgress />
-                                        </TableCell>
-                                    </TableRow>
-                                ) : filteredEvents.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={2} align="center">
-                                            <Typography color="text.secondary">
-                                                No events found for {monthOptions.find(m => m.value === selectedMonth)?.label} {selectedYear}
-                                            </Typography>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : allUsers.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={filteredEvents.length + 1} align="center">
-                                            <Typography color="text.secondary">
-                                                No attendance records found
-                                            </Typography>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    allUsers.map(user => (
-                                        <TableRow key={user.id}>
-                                            <TableCell
-                                                sx={{
-                                                    minWidth: 220,
-                                                    maxWidth: 220,
-                                                    position: 'sticky',
-                                                    left: 0,
-                                                    backgroundColor: 'background.paper',
-                                                    zIndex: 1,
-                                                    borderRight: '1px solid',
-                                                    borderRightColor: 'divider',
-                                                }}
-                                            >
-                                                <Box>
-                                                    <Typography variant="body1" noWrap title={user.name}>
-                                                        {user.name}
-                                                    </Typography>
-                                                </Box>
-                                            </TableCell>
-                                            {filteredEvents.map(event => {
-                                                const attendanceId = getAttendanceId(user.id, event.id);
-                                                const currentStatus = getAttendanceStatus(user.id, event.id);
+                                        {filteredEvents.map(event => {
+                                            const attendanceId = getAttendanceId(user.id, event.id);
+                                            const currentStatus = getAttendanceStatus(user.id, event.id);
 
-                                                return (
-                                                    <TableCell key={event.id} align="center" sx={{ minWidth: 180, maxWidth: 180, backgroundColor: 'background.paper' }}>
-                                                        {attendanceId ? (
-                                                            <FormControlLabel
-                                                                control={
-                                                                    <Checkbox
-                                                                        checked={currentStatus === 'present'}
-                                                                        onChange={(e) => handleAttendanceChange(attendanceId, e.target.checked)}
-                                                                        color="primary"
-                                                                        disabled={!hasEditPermission}
-                                                                    />
+                                            return (
+                                                <TableCell key={event.id} align="center" sx={{ minWidth: 180, maxWidth: 180, backgroundColor: 'background.paper' }}>
+                                                    {attendanceId ? (
+                                                        <FormControlLabel
+                                                            control={
+                                                                <Checkbox
+                                                                    checked={currentStatus === 'present'}
+                                                                    onChange={(e) => handleAttendanceChange(attendanceId, e.target.checked)}
+                                                                    color="primary"
+                                                                    disabled={!hasEditPermission}
+                                                                />
+                                                            }
+                                                            label={currentStatus === 'present' ? 'Present' : 'Absent'}
+                                                            slotProps={{
+                                                                typography: {
+                                                                    fontSize: '0.75rem',
+                                                                    color: !hasEditPermission ? 'text.disabled' : 'text.secondary'
                                                                 }
-                                                                label={currentStatus === 'present' ? 'Present' : 'Absent'}
-                                                                slotProps={{
-                                                                    typography: {
-                                                                        fontSize: '0.75rem',
-                                                                        color: !hasEditPermission ? 'text.disabled' : 'text.secondary'
-                                                                    }
-                                                                }}
-                                                                sx={{
-                                                                    margin: 0,
-                                                                    opacity: !hasEditPermission ? 0.6 : 1
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                No record
-                                                            </Typography>
-                                                        )}
-                                                    </TableCell>
-                                                );
-                                            })}
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                </Paper>
+                                                            }}
+                                                            sx={{
+                                                                margin: 0,
+                                                                opacity: !hasEditPermission ? 0.6 : 1
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            No record
+                                                        </Typography>
+                                                    )}
+                                                </TableCell>
+                                            );
+                                        })}
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Paper>
 
-                {/* Add Event Dialog */}
-                <Dialog open={openEventDialog} onClose={handleCloseEventDialog} maxWidth="sm" fullWidth>
-                    <DialogTitle>Add New Event</DialogTitle>
-                    <DialogContent>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                            <TextField
-                                label="Event Name"
-                                value={eventName}
-                                onChange={(e) => setEventName(e.target.value)}
-                                fullWidth
-                                placeholder="e.g., Weekly Meeting, Bible Study"
-                                required
-                            />
-
-                            <TextField
-                                label="Location"
-                                value={location}
-                                onChange={(e) => setLocation(e.target.value)}
-                                fullWidth
-                                placeholder="e.g., Conference Room A, Living Room"
-                            />
-
-                            <DateTimePicker
-                                label="Start Date & Time"
-                                value={startTime}
-                                onChange={(date) => {
-                                    setStartTime(date);
-                                    // Auto-adjust end time to be 2 hours later if it's not already set properly
-                                    if (!endTime || endTime <= date) {
-                                        const newEndTime = new Date(date);
-                                        newEndTime.setHours(newEndTime.getHours() + 2);
-                                        setEndTime(newEndTime);
-                                    }
-                                }}
-                                shouldDisableDate={(date) => {
-                                    return date.getMonth() + 1 !== selectedMonth ||
-                                        date.getFullYear() !== selectedYear;
-                                }}
-                                ampm={false}
-                                format="dd/MM/yyyy HH:mm"
-                            />
-
-                            <DateTimePicker
-                                label="End Date & Time"
-                                value={endTime}
-                                onChange={(date) => {
-                                    setEndTime(date);
-                                }}
-                                minDateTime={startTime}
-                                shouldDisableDate={(date) => {
-                                    return date.getMonth() + 1 !== selectedMonth ||
-                                        date.getFullYear() !== selectedYear;
-                                }}
-                                ampm={false}
-                                format="dd/MM/yyyy HH:mm"
-                            />
-
-                            <Typography variant="caption" color="text.secondary">
-                                Event must be scheduled in {monthOptions.find(m => m.value === selectedMonth)?.label} {selectedYear}
-                            </Typography>
-                        </Box>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handleCloseEventDialog}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleAddEvent}
-                            variant="contained"
-                            disabled={!eventName.trim()}
-                            sx={{ minWidth: 100 }}
-                        >
-                            Add Event
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-
-                {/* Custom Delete Confirmation Dialog */}
-                <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} maxWidth="sm" fullWidth>
-                    <DialogTitle>Delete Event</DialogTitle>
-                    <DialogContent>
-                        <Typography>
-                            Are you sure you want to delete "{eventToDelete?.name}"? This will also remove all attendance records for this event.
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            This action cannot be undone.
-                        </Typography>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={() => setOpenDeleteDialog(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleConfirmDelete}
-                            variant="contained"
-                            color="error"
-                            sx={{ minWidth: 100 }}
-                        >
-                            Delete
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-            </Box>
-        </LocalizationProvider>
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Delete Event</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete "{eventToDelete?.name}"? This will also remove all attendance records for this event.
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        This action cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenDeleteDialog(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleConfirmDelete}
+                        variant="contained"
+                        color="error"
+                        sx={{ minWidth: 100 }}
+                    >
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Box>
     );
 };
 
