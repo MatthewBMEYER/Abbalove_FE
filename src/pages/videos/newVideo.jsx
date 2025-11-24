@@ -17,10 +17,10 @@ import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
-import { useUserStore } from "../../../store/userStore";
-import api from "../../../api";
+import { useUserStore } from "../../store/userStore";
+import api from "../../api";
 import { VideoLibrary } from "@mui/icons-material";
-import { useTags } from "../../../hook/useTags"; // Import the custom hook
+import { useTags } from "../../hook/useTags"; // Import the custom hook
 
 const NewVideo = () => {
     const navigate = useNavigate();
@@ -137,7 +137,7 @@ const NewVideo = () => {
 
             if (res.data.success) {
                 setSnackbar({ open: true, message: "Video uploaded successfully 🎉", severity: "success" });
-                setTimeout(() => navigate("/worship/video/collections"), 1500);
+                setTimeout(() => navigate("/video/collections"), 1500);
             } else {
                 throw new Error(res.data.message || "Upload failed");
             }
@@ -354,7 +354,7 @@ const NewVideo = () => {
 
                             {/* Action Buttons */}
                             <Stack direction="row" spacing={2} justifyContent="flex-end">
-                                <Button variant="outlined" onClick={() => navigate("/worship/video/collections")} size="large">
+                                <Button variant="outlined" onClick={() => navigate("/video/collections")} size="large">
                                     Cancel
                                 </Button>
                                 <Button

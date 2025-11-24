@@ -44,7 +44,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../../../api";
 import { useUserStore } from "../../../store/userStore";
 
-const CreateEvent = () => {
+const CreateComcellEvent = () => {
     const navigate = useNavigate();
     const { groupId } = useParams();
     const { user } = useUserStore();
@@ -532,4 +532,4 @@ const CreateEvent = () => {
     );
 };
 
-export default CreateEvent;
+export default CreateComcellEvent;

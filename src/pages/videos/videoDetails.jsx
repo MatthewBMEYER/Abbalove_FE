@@ -23,9 +23,9 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import { useNavigate, useParams } from "react-router-dom";
-import { useUserStore } from "../../../store/userStore";
-import api from "../../../api";
-import { useTags } from "../../../hook/useTags"; // Import the custom hook
+import { useUserStore } from "../../store/userStore";
+import api from "../../api";
+import { useTags } from "../../hook/useTags"; // Import the custom hook
 
 const VideoDetail = () => {
     const { id } = useParams();
@@ -204,7 +204,7 @@ const VideoDetail = () => {
             const res = await api.delete(`/videos/${id}`);
             if (res.data.success) {
                 setSnackbar({ open: true, message: "Video deleted successfully", severity: "success" });
-                setTimeout(() => navigate("/worship/video/collections"), 1000);
+                setTimeout(() => navigate("/video/collections"), 1000);
             }
         } catch (err) {
             console.error("Delete video error:", err);

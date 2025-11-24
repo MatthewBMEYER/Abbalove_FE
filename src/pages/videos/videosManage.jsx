@@ -29,7 +29,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useNavigate } from "react-router-dom";
-import api from "../../../api";
+import api from "../../api";
 import AddIcon from "@mui/icons-material/Add";
 
 const VideoManage = () => {
@@ -136,11 +136,11 @@ const VideoManage = () => {
         setSelectedVideo(null);
     };
 
-    const handleUploadClick = () => navigate("/worship/video/new");
+    const handleUploadClick = () => navigate("/video/new");
 
     // Navigate to edit page
     const handleEdit = (video) => {
-        navigate(`/worship/video/${video.id}`);
+        navigate(`/video/${video.id}`);
         handleMenuClose();
     };
 
@@ -291,7 +291,7 @@ const VideoManage = () => {
                                     <Stack direction="row" alignItems="center" spacing={2}>
                                         {/* Thumbnail */}
                                         <Box
-                                            onClick={() => navigate(`/worship/video/${video.id}`)}
+                                            onClick={() => navigate(`/video/${video.id}`)}
                                             sx={{
                                                 width: "160px",
                                                 minWidth: "160px",

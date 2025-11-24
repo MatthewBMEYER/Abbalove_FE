@@ -16,8 +16,8 @@ import AddIcon from "@mui/icons-material/Add";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useNavigate } from "react-router-dom";
-import { useUserStore } from "../../../store/userStore";
-import api from "../../../api";
+import { useUserStore } from "../../store/userStore";
+import api from "../../api";
 
 // Fixed tags - no need to fetch from API
 const FIXED_TAGS = [
@@ -153,9 +153,9 @@ const VideoCollection = () => {
         fetchVideos(searchQuery, newSelectedTag, 1, false);
     };
 
-    const handleCardClick = (id) => navigate(`/worship/video/${id}`);
-    const handleUploadClick = () => navigate("/worship/video/new");
-    const handleManageClick = () => navigate("/worship/video/manage");
+    const handleCardClick = (id) => navigate(`/video/${id}`);
+    const handleUploadClick = () => navigate("/video/new");
+    const handleManageClick = () => navigate("/video/manage");
 
     return (
         <Box sx={{ minHeight: "100vh", height: "100%" }}>

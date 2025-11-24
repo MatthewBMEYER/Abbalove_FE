@@ -12,7 +12,9 @@ import {
     IconButton,
     Popover,
     Stack,
-    Grid
+    Grid,
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import {
     Event as EventIcon,
@@ -24,6 +26,7 @@ import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { PickersDay } from '@mui/x-date-pickers/PickersDay';
+import api from '../api'; // Adjust the import path as needed
 
 const Calendar = () => {
     const theme = useTheme();
@@ -32,62 +35,111 @@ const Calendar = () => {
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [monthYearAnchor, setMonthYearAnchor] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
 
-    // Simulated API fetch
-    const fetchChurchEvents = async (month, year) => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const dummyEvents = [
-                    { id: 1, title: 'Sunday Service', date: new Date(year, month, 5), type: 'service', time: '10:00 AM', priority: 1 },
-                    { id: 2, title: 'Bible Study', date: new Date(year, month, 7), type: 'study', time: '7:00 PM', priority: 2 },
-                    { id: 3, title: 'Youth Practice', date: new Date(year, month, 10), type: 'practice', time: '6:00 PM', priority: 2 },
-                    { id: 4, title: 'Prayer Meeting', date: new Date(year, month, 12), type: 'prayer', time: '7:00 PM', priority: 3 },
-                    { id: 5, title: 'Sunday Service', date: new Date(year, month, 12), type: 'service', time: '10:00 AM', priority: 1 },
-                    { id: 6, title: 'Choir Rehearsal', date: new Date(year, month, 15), type: 'practice', time: '5:00 PM', priority: 2 },
-                    { id: 7, title: "Men's Fellowship", date: new Date(year, month, 18), type: 'fellowship', time: '6:30 PM', priority: 3 },
-                    { id: 8, title: 'Sunday Service', date: new Date(year, month, 19), type: 'service', time: '10:00 AM', priority: 1 },
-                    { id: 9, title: "Women's Ministry", date: new Date(year, month, 22), type: 'fellowship', time: '10:00 AM', priority: 3 },
-                    { id: 10, title: 'Sunday Service', date: new Date(year, month, 26), type: 'service', time: '10:00 AM', priority: 1 }
-                ];
-                resolve(dummyEvents);
-            }, 300);
-        });
+    // Fetch events from real API
+    const fetchEvents = async (month, year) => {
+        setLoading(true);
+        setError(null);
+        try {
+            // Convert month to 1-based for API (JavaScript months are 0-based)
+            const monthParam = month + 1;
+
+            const response = await api.get('/events/getAll', {
+                params: {
+                    month: monthParam,
+                    year: year
+                }
+            });
+
+            if (response.data.success) {
+                // Transform API response to match our expected format
+                const transformedEvents = response.data.data.map(event => ({
+                    id: event.id,
+                    title: event.name,
+                    date: new Date(event.start_time),
+                    type: event.type || 'other',
+                    time: new Date(event.start_time).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }),
+                    priority: getEventPriority(event.type),
+                    location: event.location,
+                    description: event.description
+                }));
+
+                setEvents(transformedEvents);
+            } else {
+                setError('Failed to load events');
+            }
+        } catch (err) {
+            console.error('Error fetching events:', err);
+            setError(err.response?.data?.message || err.message || 'Failed to load events');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => {
-        const loadEvents = async () => {
-            const eventsData = await fetchChurchEvents(currentMonth, currentYear);
-            setEvents(eventsData);
+    // Map event types to priority (you can adjust this based on your needs)
+    const getEventPriority = (eventType) => {
+        const priorityMap = {
+            'service': 1,
+            'comcell': 2,
+            'prayer': 2,
+            'training': 2,
+            'outreach': 3,
+            'social': 3,
+            'fellowship': 3,
+            'study': 2,
+            'practice': 2,
+            'other': 4
         };
-        loadEvents();
-    }, [currentMonth, currentYear]);
+        return priorityMap[eventType] || 4;
+    };
 
+    // Map event types to display labels
+    const getEventTypeLabel = (type) => {
+        const labels = {
+            service: 'Service',
+            comcell: 'Cell Meeting',
+            prayer: 'Prayer',
+            training: 'Training',
+            outreach: 'Outreach',
+            social: 'Social',
+            fellowship: 'Fellowship',
+            study: 'Bible Study',
+            practice: 'Practice',
+            other: 'Event'
+        };
+        return labels[type] || 'Event';
+    };
+
+    // Map event types to colors
     const getEventTypeColor = (type) => {
         const colors = {
             service: theme.palette.primary.main,
-            practice: theme.palette.warning.main,
-            study: theme.palette.success.main,
+            comcell: theme.palette.info.main,
             prayer: theme.palette.secondary.main,
-            fellowship: theme.palette.error.main,
+            training: theme.palette.warning.main,
+            outreach: theme.palette.success.main,
+            social: theme.palette.error.main,
+            fellowship: theme.palette.purple?.[500] || '#9C27B0',
+            study: theme.palette.blue?.[500] || '#2196F3',
+            practice: theme.palette.orange?.[500] || '#FF9800',
+            other: theme.palette.grey[600],
         };
         return colors[type] || theme.palette.grey[600];
     };
 
-    const getEventTypeLabel = (type) => {
-        const labels = {
-            service: 'Service',
-            practice: 'Practice',
-            study: 'Bible Study',
-            prayer: 'Prayer',
-            fellowship: 'Fellowship',
-        };
-        return labels[type] || 'Event';
-    };
+    useEffect(() => {
+        fetchEvents(currentMonth, currentYear);
+    }, [currentMonth, currentYear]);
 
     const getEventsOnDate = (date) => {
         if (!date) return [];
@@ -173,7 +225,6 @@ const Calendar = () => {
         );
     };
 
-
     const navigateMonth = (direction) => {
         const newDate = new Date(currentYear, currentMonth + direction, 1);
         setCurrentMonth(newDate.getMonth());
@@ -253,18 +304,21 @@ const Calendar = () => {
                                     }}
                                 >
                                     {months[currentMonth]} {currentYear}
+                                    {loading && <CircularProgress size={16} sx={{ ml: 1 }} />}
                                 </Button>
 
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                     <IconButton
                                         onClick={() => navigateMonth(-1)}
                                         size="small"
+                                        disabled={loading}
                                     >
                                         <ChevronLeft />
                                     </IconButton>
                                     <IconButton
                                         onClick={() => navigateMonth(1)}
                                         size="small"
+                                        disabled={loading}
                                     >
                                         <ChevronRight />
                                     </IconButton>
@@ -274,11 +328,19 @@ const Calendar = () => {
                                         variant="contained"
                                         size="medium"
                                         sx={{ ml: 1, fontWeight: '500' }}
+                                        disabled={loading}
                                     >
                                         Today
                                     </Button>
                                 </Box>
                             </Box>
+
+                            {/* Error Alert */}
+                            {error && (
+                                <Alert severity="error" sx={{ mb: 2 }}>
+                                    {error}
+                                </Alert>
+                            )}
 
                             {/* Month/Year Popover */}
                             <Popover
@@ -441,7 +503,7 @@ const Calendar = () => {
                                     Event Types:
                                 </Typography>
                                 <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-                                    {['service', 'study', 'practice', 'prayer', 'fellowship'].map(type => (
+                                    {['service', 'comcell', 'prayer', 'training', 'outreach', 'social', 'fellowship', 'study', 'practice'].map(type => (
                                         <Box key={type} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                             <Box
                                                 sx={{
@@ -465,7 +527,6 @@ const Calendar = () => {
                     <Grid size={{ xs: 12, lg: 6 }}>
                         <Box
                             sx={{
-                                //: { xs: 2, md: 3 },
                                 borderRadius: 3,
                                 height: '100%',
                                 position: { lg: 'sticky' },
@@ -475,17 +536,20 @@ const Calendar = () => {
                             }}
                         >
                             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                                {selectedDate.toLocaleDateString('en-ID', {
-                                    //weekday: 'long',
+                                {selectedDate.toLocaleDateString('en-US', {
                                     day: 'numeric',
                                     year: 'numeric',
                                     month: 'long',
-
                                 })}
+                                {loading && <CircularProgress size={16} />}
                             </Typography>
 
                             <Box sx={{ flex: 1, overflow: 'auto' }}>
-                                {getEventsOnDate(selectedDate).length > 0 ? (
+                                {loading ? (
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                                        <CircularProgress />
+                                    </Box>
+                                ) : getEventsOnDate(selectedDate).length > 0 ? (
                                     <List dense sx={{ '& .MuiListItem-root': { px: 2 } }}>
                                         {getEventsOnDate(selectedDate).map(event => (
                                             <ListItem
@@ -507,11 +571,20 @@ const Calendar = () => {
                                                         </Typography>
                                                     }
                                                     secondary={
-                                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1 }}>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {event.time}
-                                                            </Typography>
-                                                            <Typography variant="body2" color="text.secondary">•</Typography>
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+                                                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                                                <Typography variant="body2" color="text.secondary">
+                                                                    {event.time}
+                                                                </Typography>
+                                                                {event.location && event.location !== "TBD" && (
+                                                                    <>
+                                                                        <Typography variant="body2" color="text.secondary">•</Typography>
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            {event.location}
+                                                                        </Typography>
+                                                                    </>
+                                                                )}
+                                                            </Box>
                                                             <Chip
                                                                 label={getEventTypeLabel(event.type)}
                                                                 size="small"
@@ -520,7 +593,8 @@ const Calendar = () => {
                                                                     color: 'white',
                                                                     fontWeight: 'bold',
                                                                     fontSize: '0.75rem',
-                                                                    height: 24
+                                                                    height: 24,
+                                                                    alignSelf: 'flex-start'
                                                                 }}
                                                             />
                                                         </Box>
@@ -551,7 +625,7 @@ const Calendar = () => {
                     </Grid>
                 </Grid>
             </Box>
-        </LocalizationProvider >
+        </LocalizationProvider>
     );
 };
 

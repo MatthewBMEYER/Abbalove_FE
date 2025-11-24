@@ -18,12 +18,15 @@ import {
     People,
     Close,
     Call,
+    CalendarToday,
     Groups,
     Church,
     Notifications,
     Dashboard,
+    Subscriptions,
     Settings,
-    CalendarViewDay as Event,
+    Event,
+    CalendarViewDay,
     Logout,
     Brightness4,
     Menu as MenuIcon,
@@ -40,6 +43,13 @@ const menuConfig = {
         icon: <Dashboard />,
         path: '/dashboard',
     },
+
+    video: {
+        label: 'Video',
+        icon: <Subscriptions />,
+        path: "/video/collections"
+    },
+
     worship: {
         label: 'Service',
         icon: <Church />,
@@ -48,14 +58,31 @@ const menuConfig = {
                 label: 'Schedule',
                 path: "/worship/schedule",
             },
-            video: {
-                label: 'Video Collections',
-                path: "/worship/video/collections",
+            manage: {
+                label: 'Manage',
+                path: "/worship/manage",
+                roles: ['admin', 'master', 'servant'],
             },
             giving: {
                 label: 'Giving',
                 path: "/worship/giving",
             }
+        }
+    },
+    events: {
+        label: 'Events',
+        icon: <CalendarViewDay />,
+        children: {
+            schedule: {
+                label: 'All Events',
+                path: "/events/all",
+            },
+            create: {
+                label: 'Create Event',
+                path: "/events/create",
+                roles: ['admin', 'master', 'servant'],
+            }
+
         }
     },
     calendar: {

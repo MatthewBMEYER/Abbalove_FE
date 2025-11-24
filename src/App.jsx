@@ -14,16 +14,19 @@ import MainLayout from './layouts/MainLayout';
 //---
 import Dashboard from './pages/Dashboard';
 
+//Events
+import CreateEvent from './pages/events/CreateEvent';
+
 // worships
 // import Schedule from './pages/worships/Schedule';
 // import Collections from './pages/worships/Collections';
 import Giving from './pages/worships/Giving';
 import Calendar from './pages/Calendar';
 // videos collections
-import VideoCollection from './pages/worships/videos/videosCollection';
-import NewVideo from './pages/worships/videos/newVideo';
-import VideoManage from './pages/worships/videos/videosManage';
-import VideoDetail from './pages/worships/videos/videoDetails';
+import VideoCollection from './pages/videos/videosCollection';
+import NewVideo from './pages/videos/newVideo';
+import VideoManage from './pages/videos/videosManage';
+import VideoDetail from './pages/videos/videoDetails';
 // users
 import Users from './pages/users/UserManagement';
 import UserDetail from './pages/users/UserDetail';
@@ -39,9 +42,11 @@ import MemberDetail from './pages/teams/MemberDetail';
 import AllComsell from './pages/comsell/AllComcell';
 import MyComsell from './pages/comsell/MyComcell';
 import ComcellGroupDetail from './pages/comsell/ComcellGroupDetail';
-import CreateEvent from './pages/comsell/DetailTabs/CreateEvent';
+import CreateComcellEvent from './pages/comsell/DetailTabs/CreateComcellEvent';
 // 404
 import NotFoundPage from './pages/Uavailable404';
+
+
 
 
 
@@ -82,6 +87,10 @@ function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="settings/user/profile" element={<Profile />} />
 
+          {/* Events */}
+          {/* <Route path="events/all" element={<AllEvents />} /> */}
+          <Route path="events/create" element={<CreateEvent />} />
+
           {/* Worships */}
           {/* <Route path="worship/schedule" element={<Schedule />} />
           <Route path="worship/collections" element={<Collections />} /> */}
@@ -90,10 +99,10 @@ function App() {
 
 
           {/* Videos */}
-          <Route path="worship/video/collections" element={<VideoCollection />} />
-          <Route path="worship/video/new" element={<NewVideo />} />
-          <Route path="worship/video/manage" element={<VideoManage />} />
-          <Route path="worship/video/:id" element={<VideoDetail />} />
+          <Route path="video/collections" element={<VideoCollection />} />
+          <Route path="video/new" element={<NewVideo />} />
+          <Route path="video/manage" element={<VideoManage />} />
+          <Route path="video/:id" element={<VideoDetail />} />
 
           {/* User Management */}
           <Route path="users/management" element={<Users />} />
@@ -108,7 +117,7 @@ function App() {
           <Route path="comcell/all" element={<AllComsell />} />
           <Route path="comcell/detail/:groupId" element={<ComcellGroupDetail />} />
           <Route path="comcell/mycomcell" element={<MyComsell />} />
-          <Route path="/comcell/:groupId/events/create" element={<CreateEvent />} />
+          <Route path="/comcell/:groupId/events/create" element={<CreateComcellEvent />} />
 
 
 
