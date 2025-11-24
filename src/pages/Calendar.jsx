@@ -271,9 +271,9 @@ const Calendar = () => {
                                     <Button
                                         startIcon={<Today />}
                                         onClick={goToToday}
-                                        variant="outlined"
-                                        size="small"
-                                        sx={{ ml: 1 }}
+                                        variant="contained"
+                                        size="medium"
+                                        sx={{ ml: 1, fontWeight: '500' }}
                                     >
                                         Today
                                     </Button>
@@ -348,7 +348,8 @@ const Calendar = () => {
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                paddingTop: 2,
+                                padding: 2,
+                                width: '100%',
                             }}>
                                 <DateCalendar
                                     value={selectedDate}
@@ -362,25 +363,38 @@ const Calendar = () => {
                                         setCurrentYear(newDate.getFullYear());
                                     }}
                                     showDaysOutsideCurrentMonth
-                                    fixweeknumber={6}
                                     slots={{
                                         day: CustomDay,
                                     }}
                                     sx={{
-                                        width: { xs: '100%', md: '80%', lg: '90%' },
-                                        height: '100%',
-                                        maxWidth: 'none',
-                                        '& .MuiDayCalendar-weekContainer': {
-                                            overflow: 'hidden !important',
+                                        width: '100%',
+                                        height: 'auto',
+                                        minHeight: 400,
+
+                                        '& .MuiDateCalendar-root': {
+                                            width: '100%',
+                                            height: 'auto',
                                         },
+                                        '& .MuiDayCalendar-slideTransition': {
+                                            height: 'auto !important',
+                                            minHeight: 'auto !important',
+                                            overflow: 'visible !important',
+                                        },
+                                        '& .MuiDayCalendar-weekContainer': {
+                                            height: 'auto',
+                                            minHeight: 'auto',
+                                            overflow: 'visible',
+                                        },
+                                        '& .MuiDayCalendar-monthContainer': {
+                                            height: 'auto',
+                                            minHeight: 'auto',
+                                            overflow: 'visible',
+                                        },
+
                                         '& .MuiPickersDay-dayOutsideMonth': {
                                             color: 'text.secondary !important',
                                         },
-                                        '& .MuiDayCalendar-slideTransition': {
-                                            overflow: 'visible !important',
-                                            height: 'auto !important',
-                                            minHeight: 'auto !important',
-                                        },
+
                                         '& .MuiPickersDay-root': {
                                             borderRadius: 20,
                                             margin: { xs: 0.3, md: 0.5, lg: 0.7 },
@@ -391,26 +405,30 @@ const Calendar = () => {
                                             color: 'text.primary',
                                             textAlign: 'center',
                                         },
+
                                         '& .MuiPickersDay-today': {
                                             border: 'none !important',
                                             backgroundColor: alpha(theme.palette.primary.main, 0.08),
                                         },
+
                                         '& .Mui-selected': {
                                             backgroundColor: `${theme.palette.primary.main} !important`,
                                             color: 'white !important',
                                         },
+
                                         '& .MuiPickersCalendarHeader-root': {
                                             display: 'none',
                                         },
+
                                         '& .MuiDayCalendar-weekDayLabel': {
-                                            color: 'text.secondary',
+                                            color: 'primary.main',
+                                            fontWeight: '600',
                                             margin: { xs: 0.3, md: 0.5, lg: 0.7 },
                                             fontSize: { xs: '0.75rem', lg: '1rem' },
                                             width: { xs: 36, md: 44, lg: 52 },
                                             height: { xs: 36, md: 44, lg: 52 },
                                         },
                                     }}
-
                                 />
                             </Box>
 
