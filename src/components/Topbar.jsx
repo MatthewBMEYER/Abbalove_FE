@@ -20,6 +20,8 @@ const pathTitleMap = [
     { match: "/calendar", title: "Calendar" },
     { match: "/notifications", title: "Notifications" },
     { match: "/comcell/:id/events/create", title: "Create Comcell Event" },
+    { match: "/events/create", title: "Create New Event" },
+
 ];
 
 const generateTitle = (path) => {

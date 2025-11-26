@@ -13,6 +13,7 @@ const darkTheme = createTheme({
         text: {
             primary: '#ffffff',
             secondary: '#c9c9c9ff',
+            onPrimary: '#ffffff',
         },
     },
     shadows: [

@@ -15,7 +15,7 @@ import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 
 //Events
-import CreateEvent from './pages/events/CreateEvent';
+import EventDetails from './pages/events/EventDetails';
 
 // worships
 // import Schedule from './pages/worships/Schedule';
@@ -45,6 +45,7 @@ import ComcellGroupDetail from './pages/comsell/ComcellGroupDetail';
 import CreateComcellEvent from './pages/comsell/DetailTabs/CreateComcellEvent';
 // 404
 import NotFoundPage from './pages/Uavailable404';
+
 
 
 
@@ -89,7 +90,8 @@ function App() {
 
           {/* Events */}
           {/* <Route path="events/all" element={<AllEvents />} /> */}
-          <Route path="events/create" element={<CreateEvent />} />
+          <Route path="events/create" element={<EventDetails />} />
+
 
           {/* Worships */}
           {/* <Route path="worship/schedule" element={<Schedule />} />
