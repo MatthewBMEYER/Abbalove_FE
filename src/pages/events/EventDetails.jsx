@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
     Box,
     Typography,
@@ -18,18 +18,24 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import {
     Save,
-    ArrowBack
+    ArrowBack,
+    Visibility,
+    Edit as EditIcon
 } from "@mui/icons-material";
 import api from "../../api";
 import DetailTab from "./tabs/Detail";
 import SingerTab from "./tabs/Singer";
 import SpeakerTab from "./Tabs/Speaker";
 import MusicTab from "./Tabs/Music";
+import SongTab from "./Tabs/Song";
+import UsherTab from "./Tabs/Usher";
+import MultimediaTab from "./Tabs/MultiMedia&Tech";
 
 const EventDetails = () => {
     const { eventId } = useParams();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState(0);
+    const [mode, setMode] = useState(eventId ? 'view' : 'create'); // 'view', 'edit', 'create'
     const [eventData, setEventData] = useState(null);
     const [teams, setTeams] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -38,27 +44,46 @@ const EventDetails = () => {
     const [unsavedChanges, setUnsavedChanges] = useState(false);
     const [confirmNavigate, setConfirmNavigate] = useState(false);
 
-    // Use ref for teamAssignments to prevent re-renders
-    const teamAssignmentsRef = useRef({});
-    const [, forceUpdate] = useState(0);
-
-    const isCreateMode = !eventId;
+    const isCreateMode = mode === 'create';
+    const isEditMode = mode === 'edit' || isCreateMode;
+    const isViewMode = mode === 'view';
 
     const tabConfig = [
         { id: 'details', label: 'Event Details', component: DetailTab },
         { id: 'speaker', label: 'Speaker', component: SpeakerTab },
         { id: 'singers', label: 'Singers', component: SingerTab, teamId: 'team-singer' },
-        { id: 'music', label: 'Musics', component: MusicTab, teamId: 'team-music' }
+        { id: 'music', label: 'Musics', component: MusicTab, teamId: 'team-music' },
+        { id: 'songs', label: 'Songs', component: SongTab },
+        { id: 'usher', label: 'Usher', component: UsherTab, teamId: 'team-usher' },
+        { id: 'multimedia', label: 'Multimedia & Tech', component: MultimediaTab, teamId: 'team-media' }
     ];
 
+    // Unified event data structure
     const emptyEventData = {
+        // Basic event info
         name: "",
         type: "service",
         start_time: new Date().toISOString(),
         end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
         location: "",
         description: "",
-        is_public: true
+        is_public: true,
+
+        // Tab-specific data
+        speakers: [],
+        translators: [],
+        presentations: [],
+        songs: [],
+        multimedia_requirements: [],
+        technical_needs: [],
+
+        // Team assignments
+        team_assignments: {
+            'team-singer': [],
+            'team-music': [],
+            'team-usher': [],
+            'team-media': []
+        }
     };
 
     const showSnackbar = (message, severity = "success") => {
@@ -69,39 +94,38 @@ const EventDetails = () => {
         setSnackbar(prev => ({ ...prev, open: false }));
     };
 
-    // Force update helper
-    const triggerUpdate = () => {
-        forceUpdate(prev => prev + 1);
-    };
-
     // Fetch event details and teams
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                // Fetch all main teams for tabs (for team data)
+                // Fetch all main teams for tabs
                 const teamsResponse = await api.get('/team/getAllMain');
                 if (teamsResponse.data.success) {
                     setTeams(teamsResponse.data.data);
                 }
 
-                // If edit mode, fetch existing event data
                 if (eventId) {
-                    const eventResponse = await api.get(`/events/${eventId}`);
+                    // Fetch existing event with ALL related data
+                    const eventResponse = await api.get(`/events/${eventId}/full`);
                     if (eventResponse.data.success) {
-                        setEventData(eventResponse.data.data);
-                        await fetchTeamAssignments(eventId);
+                        // Merge fetched data with our structure
+                        const fetchedData = eventResponse.data.data;
+                        setEventData({
+                            ...emptyEventData,
+                            ...fetchedData,
+                            // Ensure team_assignments structure exists
+                            team_assignments: {
+                                ...emptyEventData.team_assignments,
+                                ...(fetchedData.team_assignments || {})
+                            }
+                        });
                     } else {
                         throw new Error('Failed to fetch event details');
                     }
                 } else {
+                    // Create mode - start with empty data
                     setEventData(emptyEventData);
-                    // Initialize empty assignments for create mode
-                    tabConfig.forEach(tab => {
-                        if (tab.teamId) {
-                            teamAssignmentsRef.current[tab.teamId] = [];
-                        }
-                    });
                 }
 
             } catch (err) {
@@ -115,41 +139,34 @@ const EventDetails = () => {
         fetchData();
     }, [eventId]);
 
-    // Fetch team assignments for existing event
-    const fetchTeamAssignments = async (eventId) => {
-        try {
-            // TODO: Replace with actual API call
-            // const response = await api.get(`/events/${eventId}/assignments`);
-            // if (response.data.success) {
-            //     teamAssignmentsRef.current = response.data.data;
-            // }
-
-            // For now, initialize with empty assignments for each team
-            const initialAssignments = {};
-            tabConfig.forEach(tab => {
-                if (tab.teamId) {
-                    initialAssignments[tab.teamId] = [];
-                }
-            });
-            teamAssignmentsRef.current = initialAssignments;
-            triggerUpdate();
-        } catch (err) {
-            console.error('Error fetching team assignments:', err);
-            showSnackbar('Failed to load team assignments', 'error');
-        }
-    };
-
-    // Handle event data updates
-    const handleEventUpdate = (updatedData) => {
-        setEventData(updatedData);
+    // Unified update handler for all tab data
+    const handleEventUpdate = (updates) => {
+        setEventData(prev => ({
+            ...prev,
+            ...updates
+        }));
         setUnsavedChanges(true);
     };
 
-    // Handle team assignments updates - FIXED: Use ref to prevent re-renders
-    const handleTeamAssignmentUpdate = (teamId, members) => {
-        teamAssignmentsRef.current[teamId] = members;
+    // Update specific section of event data (for structured data)
+    const handleSectionUpdate = (section, data) => {
+        setEventData(prev => ({
+            ...prev,
+            [section]: data
+        }));
         setUnsavedChanges(true);
-        // No need to trigger update here as child components manage their own state
+    };
+
+    // Update team assignments
+    const handleTeamUpdate = (teamId, members) => {
+        setEventData(prev => ({
+            ...prev,
+            team_assignments: {
+                ...prev.team_assignments,
+                [teamId]: members
+            }
+        }));
+        setUnsavedChanges(true);
     };
 
     // Save event (both create and update)
@@ -157,23 +174,24 @@ const EventDetails = () => {
         setSaving(true);
 
         try {
+            // Validate required fields
             if (!eventData.name?.trim()) {
                 showSnackbar('Event name is required', 'error');
                 return;
             }
 
-            let response;
+            // Prepare data for API
+            const saveData = {
+                ...eventData,
+                // Ensure all data is included
+                team_assignments: eventData.team_assignments
+            };
 
+            let response;
             if (isCreateMode) {
-                response = await api.post('/events/create', {
-                    ...eventData,
-                    team_assignments: teamAssignmentsRef.current
-                });
+                response = await api.post('/events/create', saveData);
             } else {
-                response = await api.put(`/events/${eventId}`, {
-                    ...eventData,
-                    team_assignments: teamAssignmentsRef.current
-                });
+                response = await api.put(`/events/${eventId}`, saveData);
             }
 
             if (response.data.success) {
@@ -181,9 +199,13 @@ const EventDetails = () => {
                 setUnsavedChanges(false);
 
                 if (isCreateMode) {
+                    // Switch to edit mode for the new event
                     setTimeout(() => {
                         navigate(`/events/${response.data.data.id}/edit`);
                     }, 1500);
+                } else {
+                    // Switch to view mode after saving
+                    setMode('view');
                 }
             } else {
                 throw new Error(response.data.message || 'Failed to save event');
@@ -193,6 +215,20 @@ const EventDetails = () => {
             showSnackbar(err.response?.data?.message || err.message || 'Failed to save event', 'error');
         } finally {
             setSaving(false);
+        }
+    };
+
+    // Toggle between view and edit mode
+    const toggleEditMode = () => {
+        if (isViewMode) {
+            setMode('edit');
+        } else if (isEditMode) {
+            setMode('view');
+            if (unsavedChanges) {
+                // Reload original data when canceling edits
+                // You might want to confirm with user first
+                //fetchEventData();
+            }
         }
     };
 
@@ -220,42 +256,68 @@ const EventDetails = () => {
 
     const renderTabContent = () => {
         const currentTab = tabConfig[activeTab];
+        const TabComponent = currentTab.component;
 
         switch (currentTab.id) {
             case 'details':
-                const DetailComponent = currentTab.component;
                 return (
-                    <DetailComponent
-                        eventData={eventData}
+                    <TabComponent
+                        data={eventData}
                         onUpdate={handleEventUpdate}
-                        isCreateMode={isCreateMode}
+                        isViewMode={isViewMode}
+                        isEditMode={isEditMode}
                     />
                 );
 
+            case 'speaker':
+                return (
+                    <SpeakerTab
+                        speakerData={{
+                            speakers: eventData.speakers || [],
+                            translators: eventData.translators || [],
+                            presentations: eventData.presentations || []
+                        }}
+                        onUpdate={(fullSpeakerData) => {
+                            handleSectionUpdate('speakers', fullSpeakerData.speakers);
+                            handleSectionUpdate('translators', fullSpeakerData.translators);
+                            handleSectionUpdate('presentations', fullSpeakerData.presentations);
+                        }}
+                        isViewMode={isViewMode}
+                        isEditMode={isEditMode}
+                    />
+                );
+            case 'songs':
+                return (
+                    <TabComponent
+                        songs={eventData.songs}
+                        onUpdate={(songs) => handleSectionUpdate('songs', songs)}
+                        isViewMode={isViewMode}
+                        isEditMode={isEditMode}
+                    />
+                );
             case 'singers':
             case 'music':
-                const TeamComponent = currentTab.component;
+            case 'usher':
+            case 'multimedia':
                 const teamData = getTeamForTab(currentTab);
                 return (
-                    <TeamComponent
-                        key={`${currentTab.id}-${teamData?.id}`} // Add key to force remount
+                    <TabComponent
+                        key={`${currentTab.id}-${teamData?.id}`}
                         team={teamData}
-                        eventId={eventId}
-                        assignedMembers={teamAssignmentsRef.current[currentTab.teamId] || []}
-                        onAssignmentUpdate={(members) =>
-                            handleTeamAssignmentUpdate(currentTab.teamId, members)
-                        }
-                        isCreateMode={isCreateMode}
+                        assignedMembers={eventData.team_assignments[currentTab.teamId] || []}
+                        onUpdate={(members) => handleTeamUpdate(currentTab.teamId, members)}
+                        isViewMode={isViewMode}
+                        isEditMode={isEditMode}
                     />
                 );
 
             default:
-                const DefaultComponent = currentTab.component;
                 return (
-                    <DefaultComponent
-                        eventData={eventData}
-                        eventId={eventId}
-                        isCreateMode={isCreateMode}
+                    <TabComponent
+                        data={eventData}
+                        onUpdate={handleEventUpdate}
+                        isViewMode={isViewMode}
+                        isEditMode={isEditMode}
                     />
                 );
         }
@@ -302,7 +364,7 @@ const EventDetails = () => {
                             <Chip
                                 label="Unsaved Changes"
                                 color="warning"
-                                variant="contained"
+                                variant="outlined"
                                 size="medium"
                             />
                         )}
@@ -312,19 +374,36 @@ const EventDetails = () => {
                         {isCreateMode ? 'Create New Event' : eventData.name || 'Untitled Event'}
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
-                        {isCreateMode ? 'Create a new event and assign teams' : 'Edit event details and team assignments'}
+                        {isCreateMode ? 'Create a new event and assign teams' :
+                            isEditMode ? 'Edit event details and team assignments' :
+                                'View event details'}
                     </Typography>
                 </Box>
 
-                <Button
-                    variant="contained"
-                    startIcon={saving ? <CircularProgress size={20} /> : <Save />}
-                    onClick={handleSaveEvent}
-                    disabled={saving || !eventData?.name?.trim()}
-                    sx={{ minWidth: 120 }}
-                >
-                    {saving ? 'Saving...' : (isCreateMode ? 'Create Event' : 'Save Changes')}
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    {!isCreateMode && (
+                        <Button
+                            variant={isEditMode ? "outlined" : "contained"}
+                            startIcon={isEditMode ? <Visibility /> : <EditIcon />}
+                            onClick={toggleEditMode}
+                            sx={{ minWidth: 120 }}
+                        >
+                            {isEditMode ? 'View Mode' : 'Edit Mode'}
+                        </Button>
+                    )}
+
+                    {isEditMode && (
+                        <Button
+                            variant="contained"
+                            startIcon={saving ? <CircularProgress size={20} /> : <Save />}
+                            onClick={handleSaveEvent}
+                            disabled={saving || !eventData?.name?.trim()}
+                            sx={{ minWidth: 120 }}
+                        >
+                            {saving ? 'Saving...' : (isCreateMode ? 'Create Event' : 'Save Changes')}
+                        </Button>
+                    )}
+                </Box>
             </Box>
 
             {/* Tabs */}
@@ -335,7 +414,7 @@ const EventDetails = () => {
                     variant="scrollable"
                     scrollButtons="auto"
                 >
-                    {tabConfig.map((tab, index) => (
+                    {tabConfig.map((tab) => (
                         <Tab
                             key={tab.id}
                             label={tab.label}

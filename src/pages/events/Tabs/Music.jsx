@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
     Box,
     Typography,
@@ -17,7 +17,8 @@ import {
     Checkbox,
     Drawer,
     TextField,
-    Divider
+    Divider,
+    Chip
 } from "@mui/material";
 import {
     Add,
@@ -28,12 +29,31 @@ import {
 } from "@mui/icons-material";
 import api from "../../../api";
 
-const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreateMode }) => {
+const MusicTab = ({
+    team,
+    assignedMembers,
+    onUpdate,
+    isViewMode,
+    isEditMode
+}) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [positions, setPositions] = useState([]);
     const [teamMembers, setTeamMembers] = useState([]);
-    const [positionAssignments, setPositionAssignments] = useState({});
+    const [positionAssignments, setPositionAssignments] = useState(() => {
+        if (!assignedMembers || assignedMembers.length === 0) return {};
+
+        const assignments = {};
+        assignedMembers.forEach(member => {
+            if (member.position_id) {
+                if (!assignments[member.position_id]) {
+                    assignments[member.position_id] = [];
+                }
+                assignments[member.position_id].push(member);
+            }
+        });
+        return assignments;
+    });
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [currentPosition, setCurrentPosition] = useState(null);
     const [tempSelection, setTempSelection] = useState([]);
@@ -41,6 +61,12 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
 
     // Use ref to track previous assignments and prevent infinite loops
     const prevAssignmentsRef = useRef({});
+    const isInitialMount = useRef(true);
+
+    // Initialize ref on mount
+    useEffect(() => {
+        prevAssignmentsRef.current = positionAssignments;
+    }, []);
 
     // Fetch positions and team members
     useEffect(() => {
@@ -77,28 +103,13 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
         fetchData();
     }, [team?.id]);
 
-    // Initialize assignments when assignedMembers prop changes
-    useEffect(() => {
-        if (assignedMembers && assignedMembers.length > 0) {
-            const assignments = {};
-            assignedMembers.forEach(member => {
-                if (member.position_id) {
-                    if (!assignments[member.position_id]) {
-                        assignments[member.position_id] = [];
-                    }
-                    assignments[member.position_id].push(member);
-                }
-            });
-            setPositionAssignments(assignments);
-            prevAssignmentsRef.current = assignments;
-        } else {
-            setPositionAssignments({});
-            prevAssignmentsRef.current = {};
-        }
-    }, [assignedMembers]);
-
     // Update parent only when there are actual changes
     useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
         const hasAssignmentsChanged = JSON.stringify(positionAssignments) !== JSON.stringify(prevAssignmentsRef.current);
 
         if (hasAssignmentsChanged) {
@@ -112,10 +123,11 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
                     });
                 });
             });
-            onAssignmentUpdate(allAssignments);
+
+            onUpdate(allAssignments);
             prevAssignmentsRef.current = { ...positionAssignments };
         }
-    }, [positionAssignments, onAssignmentUpdate]);
+    }, [positionAssignments, onUpdate]);
 
     // Open drawer for position selection
     const openSelectionDrawer = (position) => {
@@ -146,7 +158,6 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
             ...prev,
             [currentPosition.id]: selectedMembers
         }));
-        updateParentAssignment(); // Add this line
         closeDrawer();
     };
 
@@ -179,12 +190,30 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
     };
 
     // Remove member from position
-    const removeMemberFromPosition = (positionId, userId) => {
+    const removeMemberFromPosition = useCallback((positionId, userId) => {
         setPositionAssignments(prev => ({
             ...prev,
             [positionId]: (prev[positionId] || []).filter(member => member.user_id !== userId)
         }));
-    };
+    }, []);
+
+    // Find member assignment status
+    const getMemberAssignmentStatus = useCallback((userId) => {
+        const assignedPositions = [];
+        Object.entries(positionAssignments).forEach(([positionId, members]) => {
+            if (members.some(m => m.user_id === userId)) {
+                const position = positions.find(p => p.id === positionId);
+                if (position) {
+                    assignedPositions.push(position.label);
+                }
+            }
+        });
+
+        if (assignedPositions.length > 0) {
+            return assignedPositions.join(', ');
+        }
+        return null;
+    }, [positionAssignments, positions]);
 
     if (loading) {
         return (
@@ -195,7 +224,21 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
     }
 
     return (
-        <Box sx={{ gap: 3, width: '100%' }}>
+        <Box sx={{ gap: 3, width: '100%', px: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h5" fontWeight="600">
+                    Musicians
+                </Typography>
+                {isViewMode && (
+                    <Chip
+                        label="View Mode"
+                        color="info"
+                        variant="outlined"
+                        size="small"
+                    />
+                )}
+            </Box>
+
             {/* Error Message */}
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
@@ -203,22 +246,12 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
                 </Alert>
             )}
 
-            {/* Summary - Only show when there are assignments
-            {Object.values(positionAssignments).flat().length > 0 && (
-                <Paper sx={{
-                    p: 2,
-                    bgcolor: 'background.default',
-                    color: 'text.main',
-                    mb: 2,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'divider'
-                }} elevation={0}>
-                    <Typography variant="body2">
-                        <strong>Total Assigned:</strong> {Object.values(positionAssignments).flat().length} Musician(s) across {Object.keys(positionAssignments).length} position(s)
-                    </Typography>
-                </Paper>
-            )} */}
+            {/* View mode info */}
+            {isViewMode && positions.length === 0 && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    No musicians assigned for this event.
+                </Alert>
+            )}
 
             {/* Positions Grid - Stable Layout */}
             <Grid container spacing={2}>
@@ -226,14 +259,19 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
                     const assignedMembers = positionAssignments[position.id] || [];
 
                     return (
-                        <Grid item size={{ lg: 12 }} key={position.id}>
+                        <Grid item size={{ md: 12, lg: 12, xs: 12 }} key={position.id}>
                             <Card
                                 variant="outlined"
                                 sx={{
                                     p: 2,
                                     minHeight: assignedMembers.length > 0 ? 'auto' : 80,
                                     display: 'flex',
-                                    alignItems: 'stretch'
+                                    alignItems: 'stretch',
+                                    backgroundColor: 'background.paper',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    borderRadius: 1,
+                                    opacity: isViewMode ? 0.9 : 1
                                 }}
                             >
                                 <Box sx={{
@@ -276,7 +314,7 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
                                                     alignItems: 'center'
                                                 }}
                                             >
-                                                No one assigned
+                                                {isViewMode ? 'No one assigned' : 'No one assigned yet'}
                                             </Typography>
                                         ) : (
                                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -300,13 +338,15 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
                                                                 {member.name}
                                                             </Typography>
                                                         </Box>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => removeMemberFromPosition(position.id, member.user_id)}
-                                                            color="error"
-                                                        >
-                                                            <Close fontSize="small" />
-                                                        </IconButton>
+                                                        {isEditMode && (
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => removeMemberFromPosition(position.id, member.user_id)}
+                                                                color="error"
+                                                            >
+                                                                <Close fontSize="small" />
+                                                            </IconButton>
+                                                        )}
                                                     </Box>
                                                 ))}
                                             </Box>
@@ -319,15 +359,17 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
                                         alignItems: 'center',
                                         height: '100%'
                                     }}>
-                                        <Button
-                                            variant="outlined"
-                                            startIcon={<Add />}
-                                            onClick={() => openSelectionDrawer(position)}
-                                            size="small"
-                                            sx={{ minWidth: 'auto' }}
-                                        >
-                                            Add
-                                        </Button>
+                                        {isEditMode && (
+                                            <Button
+                                                variant="contained"
+                                                startIcon={<Add />}
+                                                onClick={() => openSelectionDrawer(position)}
+                                                size="small"
+                                                sx={{ minWidth: 'auto' }}
+                                            >
+                                                Add
+                                            </Button>
+                                        )}
                                     </Box>
                                 </Box>
                             </Card>
@@ -349,113 +391,126 @@ const MusicTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreate
                 </Box>
             )}
 
-            {/* Selection Drawer */}
-            <Drawer
-                anchor="right"
-                open={drawerOpen}
-                onClose={closeDrawer}
-                PaperProps={{ sx: { width: { xs: '100%', sm: 500 } } }}
-            >
-                <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    {/* Header */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Box>
-                            <Typography variant="h6">
-                                Select Musicians
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                For: {currentPosition?.label}
-                            </Typography>
+            {/* Selection Drawer - Only in edit mode */}
+            {isEditMode && (
+                <Drawer
+                    anchor="right"
+                    open={drawerOpen}
+                    onClose={closeDrawer}
+                    PaperProps={{ sx: { width: { xs: '100%', sm: 500 } } }}
+                >
+                    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        {/* Header */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Box>
+                                <Typography variant="h6">
+                                    Select Musicians
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    For: {currentPosition?.label}
+                                </Typography>
+                            </Box>
+                            <IconButton onClick={closeDrawer}>
+                                <Close />
+                            </IconButton>
                         </Box>
-                        <IconButton onClick={closeDrawer}>
-                            <Close />
-                        </IconButton>
-                    </Box>
 
-                    {/* Search */}
-                    <TextField
-                        fullWidth
-                        placeholder="Search by name or positions..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        InputProps={{
-                            startAdornment: <Search sx={{ color: 'text.secondary', mr: 1 }} />
-                        }}
-                        sx={{ mb: 2 }}
-                    />
+                        {/* Search */}
+                        <TextField
+                            fullWidth
+                            placeholder="Search by name or positions..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            InputProps={{
+                                startAdornment: <Search sx={{ color: 'text.secondary', mr: 1 }} />
+                            }}
+                            sx={{ mb: 2 }}
+                        />
 
-                    {/* Select All Button */}
-                    <Button
-                        onClick={handleSelectAll}
-                        variant="outlined"
-                        sx={{ mb: 2 }}
-                        fullWidth
-                    >
-                        {tempSelection.length === getFilteredMembers().length ? 'Deselect All' : 'Select All'}
-                    </Button>
+                        {/* Select All Button */}
+                        <Button
+                            onClick={handleSelectAll}
+                            variant="outlined"
+                            sx={{ mb: 2 }}
+                            fullWidth
+                        >
+                            {tempSelection.length === getFilteredMembers().length ? 'Deselect All' : 'Select All'}
+                        </Button>
 
-                    {/* Members List */}
-                    <Box sx={{ flex: 1, overflow: 'auto' }}>
-                        <List>
-                            {getFilteredMembers().map((member) => {
-                                const isSelected = tempSelection.includes(member.user_id);
-                                return (
-                                    <ListItem
-                                        key={member.user_id}
-                                        dense
-                                        button
-                                        onClick={() => handleTempSelectionToggle(member.user_id)}
-                                    >
-                                        <ListItemIcon>
-                                            <Checkbox
-                                                edge="start"
-                                                checked={isSelected}
-                                                tabIndex={-1}
-                                                disableRipple
-                                            />
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primary={member.name}
-                                            secondary={
-                                                <Box>
-                                                    <Typography variant="caption" display="block">
-                                                        {member.positions || 'No positions listed'}
-                                                    </Typography>
-                                                    {member.email && (
-                                                        <Typography variant="caption" color="text.secondary">
-                                                            {member.email}
+                        {/* Members List */}
+                        <Box sx={{ flex: 1, overflow: 'auto' }}>
+                            <List>
+                                {getFilteredMembers().map((member) => {
+                                    const isSelected = tempSelection.includes(member.user_id);
+                                    const assignmentStatus = getMemberAssignmentStatus(member.user_id);
+
+                                    return (
+                                        <ListItem
+                                            key={member.user_id}
+                                            dense
+                                            button
+                                            onClick={() => handleTempSelectionToggle(member.user_id)}
+                                        >
+                                            <ListItemIcon>
+                                                <Checkbox
+                                                    edge="start"
+                                                    checked={isSelected}
+                                                    tabIndex={-1}
+                                                    disableRipple
+                                                />
+                                            </ListItemIcon>
+                                            <ListItemText
+                                                primary={member.name}
+                                                secondary={
+                                                    <Box>
+                                                        <Typography variant="caption" display="block">
+                                                            {member.positions || 'No positions listed'}
                                                         </Typography>
-                                                    )}
-                                                </Box>
-                                            }
+                                                        {assignmentStatus && (
+                                                            <Chip
+                                                                label={`Assigned to: ${assignmentStatus}`}
+                                                                size="small"
+                                                                variant="outlined"
+                                                                color="info"
+                                                                sx={{ mt: 0.5 }}
+                                                            />
+                                                        )}
+                                                        {member.email && (
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {member.email}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                }
+                                            />
+                                        </ListItem>
+                                    );
+                                })}
+                                {getFilteredMembers().length === 0 && (
+                                    <ListItem>
+                                        <ListItemText
+                                            primary="No team members found"
+                                            secondary="Try adjusting your search terms"
                                         />
                                     </ListItem>
-                                );
-                            })}
-                            {getFilteredMembers().length === 0 && (
-                                <ListItem>
-                                    <ListItemText
-                                        primary="No team members found"
-                                        secondary="Try adjusting your search terms"
-                                    />
-                                </ListItem>
-                            )}
-                        </List>
-                    </Box>
+                                )}
+                            </List>
+                        </Box>
 
-                    {/* Footer Actions */}
-                    <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                        <Button
-                            variant="contained"
-                            onClick={saveSelection}
-                            fullWidth
-                            disabled={tempSelection.length === 0}
-                        >
-                            Save Selection ({tempSelection.length})
-                        </Button>
+                        {/* Footer Actions */}
+                        <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                            <Button
+                                variant="contained"
+                                onClick={saveSelection}
+                                fullWidth
+                                disabled={tempSelection.length === 0}
+                            >
+                                Save Selection ({tempSelection.length})
+                            </Button>
+                        </Box>
                     </Box>
-                </Box>
-            </Drawer>
+                </Drawer>
+            )}
         </Box>
     );
 };

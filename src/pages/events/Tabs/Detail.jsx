@@ -6,7 +6,6 @@ import {
     TextField,
     Paper,
     Alert,
-    CircularProgress,
     FormControl,
     InputLabel,
     Select,
@@ -14,57 +13,78 @@ import {
     Divider
 } from "@mui/material";
 import {
+    Edit as EditIcon,
     Save,
-    Cancel,
-    Edit
+    Cancel
 } from "@mui/icons-material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 
-const DetailTab = ({ eventData, onUpdate, isCreateMode }) => {
-    const [isEditing, setIsEditing] = useState(isCreateMode);
-    const [formData, setFormData] = useState(eventData);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState("");
+const DetailTab = ({ data, onUpdate, isViewMode, isEditMode }) => {
+    const [localData, setLocalData] = useState(data);
+    const [touched, setTouched] = useState({});
+    const [errors, setErrors] = useState({});
 
-    // Update form data when eventData changes
+    // Update local data when parent data changes
     useEffect(() => {
-        setFormData(eventData);
-    }, [eventData]);
+        setLocalData(data);
+    }, [data]);
 
-    const handleInputChange = (field, value) => {
+    // Validate field
+    const validateField = (field, value) => {
+        switch (field) {
+            case 'name':
+                return value?.trim() ? '' : 'Event name is required';
+            case 'start_time':
+                return value ? '' : 'Start time is required';
+            case 'end_time':
+                if (!value) return 'End time is required';
+                if (new Date(value) <= new Date(data.start_time)) {
+                    return 'End time must be after start time';
+                }
+                return '';
+            default:
+                return '';
+        }
+    };
+
+    // Handle field change
+    const handleChange = (field, value) => {
         const updatedData = {
-            ...formData,
+            ...localData,
             [field]: value
         };
-        setFormData(updatedData);
-        onUpdate(updatedData);
-    };
 
-    const handleSave = () => {
-        setLoading(true);
-        // In create mode, saving is handled by parent
-        // In edit mode, we could save individual tab changes here
-        setTimeout(() => {
-            setIsEditing(false);
-            setLoading(false);
-            setSuccess('Details updated successfully');
-        }, 500);
-    };
+        setLocalData(updatedData);
+        setTouched(prev => ({ ...prev, [field]: true }));
 
-    const handleCancel = () => {
-        setFormData(eventData);
-        if (isCreateMode) {
-            // In create mode, keep editing mode but reset to original data
-            setFormData(eventData);
-        } else {
-            setIsEditing(false);
+        // Validate
+        const error = validateField(field, value);
+        setErrors(prev => ({
+            ...prev,
+            [field]: error
+        }));
+
+        // Only update parent if valid
+        if (!error) {
+            onUpdate(updatedData);
         }
-        setError(null);
-        setSuccess("");
     };
+
+    // Event type options
+    const eventTypeOptions = [
+        { value: 'service', label: 'Sunday Service' },
+        { value: 'prayer', label: 'Prayer Meeting' },
+        { value: 'training', label: 'Training Session' },
+        { value: 'outreach', label: 'Outreach Event' },
+        { value: 'social', label: 'Social Gathering' },
+        { value: 'fellowship', label: 'Fellowship' },
+        { value: 'conference', label: 'Conference' },
+        { value: 'workshop', label: 'Workshop' },
+        { value: 'retreat', label: 'Retreat' },
+        { value: 'other', label: 'Other Event' }
+    ];
 
     const formatTime = (dateString) => {
         return new Date(dateString).toLocaleTimeString('en-US', {
@@ -83,89 +103,41 @@ const DetailTab = ({ eventData, onUpdate, isCreateMode }) => {
         });
     };
 
-    // Event type options
-    const eventTypeOptions = [
-        { value: 'service', label: 'Sunday Service' },
-        { value: 'prayer', label: 'Prayer Meeting' },
-        { value: 'training', label: 'Training Session' },
-        { value: 'outreach', label: 'Outreach Event' },
-        { value: 'social', label: 'Social Gathering' },
-        { value: 'fellowship', label: 'Fellowship' },
-        { value: 'conference', label: 'Conference' },
-        { value: 'workshop', label: 'Workshop' },
-        { value: 'retreat', label: 'Retreat' },
-        { value: 'other', label: 'Other Event' }
-    ];
-
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Box sx={{ py: 3 }}>
-                {/* Header with Edit Button (only in edit mode) */}
-                {!isCreateMode && (
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                        {!isEditing ? (
-                            <Button
-                                variant="outlined"
-                                startIcon={<Edit />}
-                                onClick={() => setIsEditing(true)}
-                            >
-                                Edit Details
-                            </Button>
-                        ) : (
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<Cancel />}
-                                    onClick={handleCancel}
-                                    disabled={loading}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<Save />}
-                                    onClick={handleSave}
-                                    disabled={loading}
-                                >
-                                    Save
-                                </Button>
-                            </Box>
-                        )}
-                    </Box>
-                )}
+            <Box sx={{ px: 3, py: 2 }}>
+                <Typography variant="h5" fontWeight="600" sx={{ mb: 3 }}>
+                    Event Details
+                </Typography>
 
-                {/* Success/Error Messages */}
-                {success && (
-                    <Alert severity="success" sx={{ mb: 2 }}>
-                        {success}
-                    </Alert>
-                )}
-                {error && (
+                {/* Show errors if any */}
+                {Object.values(errors).some(error => error) && (
                     <Alert severity="error" sx={{ mb: 2 }}>
-                        {error}
+                        Please fix the errors before saving
                     </Alert>
                 )}
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {/* Event Name */}
                     <TextField
-                        label="Event Name"
-                        value={formData.name || ''}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        label="Event Name *"
+                        value={localData.name || ''}
+                        onChange={(e) => handleChange('name', e.target.value)}
                         fullWidth
-                        placeholder="e.g., Sunday Service, Annual Conference, Youth Retreat"
+                        placeholder="e.g., Sunday Service, Annual Conference"
                         required
-                        disabled={!isEditing && !isCreateMode}
+                        disabled={!isEditMode}
+                        error={touched.name && !!errors.name}
+                        helperText={touched.name && errors.name}
                     />
 
                     {/* Event Type */}
-                    <FormControl fullWidth>
+                    <FormControl fullWidth disabled={!isEditMode}>
                         <InputLabel>Event Type</InputLabel>
                         <Select
-                            value={formData.type || 'service'}
+                            value={localData.type || 'service'}
                             label="Event Type"
-                            onChange={(e) => handleInputChange('type', e.target.value)}
-                            disabled={!isEditing && !isCreateMode}
+                            onChange={(e) => handleChange('type', e.target.value)}
                         >
                             {eventTypeOptions.map(type => (
                                 <MenuItem key={type.value} value={type.value}>
@@ -178,11 +150,11 @@ const DetailTab = ({ eventData, onUpdate, isCreateMode }) => {
                     {/* Location */}
                     <TextField
                         label="Location"
-                        value={formData.location || ''}
-                        onChange={(e) => handleInputChange('location', e.target.value)}
+                        value={localData.location || ''}
+                        onChange={(e) => handleChange('location', e.target.value)}
                         fullWidth
                         placeholder="e.g., Main Sanctuary, Community Hall, Online"
-                        disabled={!isEditing && !isCreateMode}
+                        disabled={!isEditMode}
                     />
 
                     {/* Description */}
@@ -191,12 +163,12 @@ const DetailTab = ({ eventData, onUpdate, isCreateMode }) => {
                             Description
                         </Typography>
                         <TextField
-                            value={formData.description || ''}
-                            onChange={(e) => handleInputChange('description', e.target.value)}
+                            value={localData.description || ''}
+                            onChange={(e) => handleChange('description', e.target.value)}
                             fullWidth
                             multiline
                             rows={4}
-                            disabled={!isEditing && !isCreateMode}
+                            disabled={!isEditMode}
                             placeholder="Describe the event purpose, agenda, and any special instructions..."
                         />
                     </Box>
@@ -205,69 +177,83 @@ const DetailTab = ({ eventData, onUpdate, isCreateMode }) => {
                     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                         <Box sx={{ flex: 1, minWidth: 250 }}>
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                Start Time
+                                Start Time *
                             </Typography>
-                            {isEditing || isCreateMode ? (
+                            {isEditMode ? (
                                 <DateTimePicker
-                                    value={new Date(formData.start_time)}
-                                    onChange={(date) => handleInputChange('start_time', date.toISOString())}
+                                    value={new Date(localData.start_time)}
+                                    onChange={(date) => handleChange('start_time', date.toISOString())}
                                     ampm={false}
                                     format="dd/MM/yyyy HH:mm"
                                     sx={{ width: '100%' }}
+                                    disabled={!isEditMode}
                                 />
                             ) : (
                                 <Paper variant="outlined" sx={{ p: 2 }}>
                                     <Typography>
-                                        {formatDate(formData.start_time)} at {formatTime(formData.start_time)}
+                                        {formatDate(localData.start_time)} at {formatTime(localData.start_time)}
                                     </Typography>
                                 </Paper>
+                            )}
+                            {touched.start_time && errors.start_time && (
+                                <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                                    {errors.start_time}
+                                </Typography>
                             )}
                         </Box>
 
                         <Box sx={{ flex: 1, minWidth: 250 }}>
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                End Time
+                                End Time *
                             </Typography>
-                            {isEditing || isCreateMode ? (
+                            {isEditMode ? (
                                 <DateTimePicker
-                                    value={new Date(formData.end_time)}
-                                    onChange={(date) => handleInputChange('end_time', date.toISOString())}
-                                    minDateTime={new Date(formData.start_time)}
+                                    value={new Date(localData.end_time)}
+                                    onChange={(date) => handleChange('end_time', date.toISOString())}
+                                    minDateTime={new Date(localData.start_time)}
                                     ampm={false}
                                     format="dd/MM/yyyy HH:mm"
                                     sx={{ width: '100%' }}
+                                    disabled={!isEditMode}
                                 />
                             ) : (
                                 <Paper variant="outlined" sx={{ p: 2 }}>
                                     <Typography>
-                                        {formatDate(formData.end_time)} at {formatTime(formData.end_time)}
+                                        {formatDate(localData.end_time)} at {formatTime(localData.end_time)}
                                     </Typography>
                                 </Paper>
+                            )}
+                            {touched.end_time && errors.end_time && (
+                                <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                                    {errors.end_time}
+                                </Typography>
                             )}
                         </Box>
                     </Box>
 
-                    {/* Read-only Information for Edit Mode */}
-                    {!isCreateMode && !isEditing && (
+                    {/* Read-only Information for View Mode */}
+                    {isViewMode && data.created_at && (
                         <>
                             <Divider sx={{ my: 2 }} />
-                            <Box sx={{ display: 'flex', gap: 4 }}>
+                            <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                 <Box>
                                     <Typography variant="body2" color="text.secondary">
                                         Created
                                     </Typography>
                                     <Typography variant="body1">
-                                        {formData.created_at ? formatDate(formData.created_at) : 'Unknown'}
+                                        {formatDate(data.created_at)}
                                     </Typography>
                                 </Box>
-                                <Box>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Last Updated
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        {formData.updated_at ? formatDate(formData.updated_at) : 'Unknown'}
-                                    </Typography>
-                                </Box>
+                                {data.updated_at && (
+                                    <Box>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Last Updated
+                                        </Typography>
+                                        <Typography variant="body1">
+                                            {formatDate(data.updated_at)}
+                                        </Typography>
+                                    </Box>
+                                )}
                             </Box>
                         </>
                     )}

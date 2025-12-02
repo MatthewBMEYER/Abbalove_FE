@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
     Box,
     Typography,
@@ -12,17 +12,12 @@ import {
     IconButton,
     Chip,
     Grid,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     List,
     ListItem,
     ListItemText,
     ListItemIcon,
     Checkbox,
-    Drawer,
-    Avatar
+    Drawer
 } from "@mui/material";
 import {
     Add,
@@ -37,12 +32,13 @@ import {
 } from "@mui/icons-material";
 import api from "../../../api";
 
-const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
-    const [speakers, setSpeakers] = useState([]);
-    const [translators, setTranslators] = useState([]);
-    const [presentationFiles, setPresentationFiles] = useState([]);
+const SpeakerTab = ({
+    speakerData = {},
+    onUpdate,
+    isViewMode,
+    isEditMode
+}) => {
     const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState("");
 
@@ -54,18 +50,25 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
     const [tempSelection, setTempSelection] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
 
-    // Form states for manual entries
+    // Form states for Guest entries
     const [newSpeakerName, setNewSpeakerName] = useState("");
     const [newTranslatorName, setNewTranslatorName] = useState("");
     const [uploadingFile, setUploadingFile] = useState(false);
 
-    // Fetch all users and existing data
+    // Destructure speakerData with defaults
+    const {
+        speakers = [],
+        translators = [],
+        presentationFiles = []
+    } = speakerData;
+
+    // Ref to track previous data
+    const prevSpeakerDataRef = useRef({ speakers, translators, presentationFiles });
+
+    // Fetch all users
     useEffect(() => {
         fetchAllUsers();
-        if (eventId && !isCreateMode) {
-            fetchSpeakerData();
-        }
-    }, [eventId, isCreateMode]);
+    }, []);
 
     const fetchAllUsers = async () => {
         setUsersLoading(true);
@@ -84,23 +87,27 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
         }
     };
 
-    const fetchSpeakerData = async () => {
-        setLoading(true);
-        try {
-            // Mock data for now
-            setSpeakers([]);
-            setTranslators([]);
-            setPresentationFiles([]);
-        } catch (err) {
-            console.error('Error fetching speaker data:', err);
-            setError('Failed to load speaker data');
-        } finally {
-            setLoading(false);
+    // Update parent when data changes
+    useEffect(() => {
+        const hasChanged =
+            JSON.stringify(speakers) !== JSON.stringify(prevSpeakerDataRef.current.speakers) ||
+            JSON.stringify(translators) !== JSON.stringify(prevSpeakerDataRef.current.translators) ||
+            JSON.stringify(presentationFiles) !== JSON.stringify(prevSpeakerDataRef.current.presentationFiles);
+
+        if (hasChanged) {
+            onUpdate({
+                speakers,
+                translators,
+                presentationFiles
+            });
+            prevSpeakerDataRef.current = { speakers, translators, presentationFiles };
         }
-    };
+    }, [speakers, translators, presentationFiles, onUpdate]);
 
     // Open drawer for user selection
-    const openUserSelectionDrawer = (type) => {
+    const openUserSelectionDrawer = useCallback((type) => {
+        if (!isEditMode) return;
+
         setSelectionType(type);
         // Set current selection as temporary selection
         if (type === 'speaker') {
@@ -109,7 +116,7 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
             setTempSelection(translators.filter(t => t.type === 'user').map(t => t.userId));
         }
         setDrawerOpen(true);
-    };
+    }, [speakers, translators, isEditMode]);
 
     // Close drawer without saving
     const closeDrawer = () => {
@@ -119,8 +126,7 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
         setSearchTerm("");
     };
 
-    // Save selection from drawer
-    const saveUserSelection = () => {
+    const saveUserSelection = useCallback(() => {
         const selectedUsers = allUsers.filter(user =>
             tempSelection.includes(user.id)
         );
@@ -135,18 +141,36 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
         }));
 
         if (selectionType === 'speaker') {
-            // Remove existing user-type speakers and add new selections
-            const manualSpeakers = speakers.filter(s => s.type === 'name');
-            setSpeakers([...manualSpeakers, ...newEntries]);
+            // Keep existing Guest speakers AND add new user selections
+            // Filter out any existing user-type speakers to avoid duplicates
+            const existingGuestSpeakers = speakers.filter(s => s.type === 'name');
+            const existingUserSpeakers = speakers.filter(s => s.type === 'user');
+
+            // Combine: keep Guest, replace user selections with new ones
+            const updatedSpeakers = [...existingGuestSpeakers, ...newEntries];
+
+            onUpdate({
+                speakers: updatedSpeakers,
+                translators,
+                presentationFiles
+            });
         } else {
-            // Remove existing user-type translators and add new selections
-            const manualTranslators = translators.filter(t => t.type === 'name');
-            setTranslators([...manualTranslators, ...newEntries]);
+            // Same logic for translators
+            const existingGuestTranslators = translators.filter(t => t.type === 'name');
+            const existingUserTranslators = translators.filter(t => t.type === 'user');
+
+            const updatedTranslators = [...existingGuestTranslators, ...newEntries];
+
+            onUpdate({
+                speakers,
+                translators: updatedTranslators,
+                presentationFiles
+            });
         }
 
         setSuccess(`${selectionType === 'speaker' ? 'Speakers' : 'Translators'} updated successfully`);
         closeDrawer();
-    };
+    }, [allUsers, tempSelection, selectionType, speakers, translators, presentationFiles, onUpdate]);
 
     // Handle checkbox toggle in drawer
     const handleTempSelectionToggle = (userId) => {
@@ -176,8 +200,8 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
         );
     };
 
-    // Add manual speaker
-    const handleAddManualSpeaker = () => {
+    // Add Guest speaker
+    const handleAddGuestSpeaker = useCallback(() => {
         if (!newSpeakerName.trim()) {
             setError('Please enter speaker name');
             return;
@@ -191,13 +215,21 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
             addedAt: new Date().toISOString()
         };
 
-        setSpeakers(prev => [...prev, speaker]);
+        const updatedSpeakers = [...speakers, speaker];
+        prevSpeakerDataRef.current.speakers = updatedSpeakers;
+
+        onUpdate({
+            speakers: updatedSpeakers,
+            translators,
+            presentationFiles
+        });
+
         setNewSpeakerName("");
         setSuccess('Speaker added successfully');
-    };
+    }, [newSpeakerName, speakers, translators, presentationFiles, onUpdate]);
 
-    // Add manual translator
-    const handleAddManualTranslator = () => {
+    // Add Guest translator
+    const handleAddGuestTranslator = useCallback(() => {
         if (!newTranslatorName.trim()) {
             setError('Please enter translator name');
             return;
@@ -211,25 +243,49 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
             addedAt: new Date().toISOString()
         };
 
-        setTranslators(prev => [...prev, translator]);
+        const updatedTranslators = [...translators, translator];
+        prevSpeakerDataRef.current.translators = updatedTranslators;
+
+        onUpdate({
+            speakers,
+            translators: updatedTranslators,
+            presentationFiles
+        });
+
         setNewTranslatorName("");
         setSuccess('Translator added successfully');
-    };
+    }, [newTranslatorName, speakers, translators, presentationFiles, onUpdate]);
 
     // Remove speaker
-    const handleRemoveSpeaker = (speakerId) => {
-        setSpeakers(prev => prev.filter(s => s.id !== speakerId));
+    const handleRemoveSpeaker = useCallback((speakerId) => {
+        const updatedSpeakers = speakers.filter(s => s.id !== speakerId);
+        prevSpeakerDataRef.current.speakers = updatedSpeakers;
+
+        onUpdate({
+            speakers: updatedSpeakers,
+            translators,
+            presentationFiles
+        });
+
         setSuccess('Speaker removed');
-    };
+    }, [speakers, translators, presentationFiles, onUpdate]);
 
     // Remove translator
-    const handleRemoveTranslator = (translatorId) => {
-        setTranslators(prev => prev.filter(t => t.id !== translatorId));
+    const handleRemoveTranslator = useCallback((translatorId) => {
+        const updatedTranslators = translators.filter(t => t.id !== translatorId);
+        prevSpeakerDataRef.current.translators = updatedTranslators;
+
+        onUpdate({
+            speakers,
+            translators: updatedTranslators,
+            presentationFiles
+        });
+
         setSuccess('Translator removed');
-    };
+    }, [speakers, translators, presentationFiles, onUpdate]);
 
     // Handle file upload
-    const handleFileUpload = async (event) => {
+    const handleFileUpload = useCallback(async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
@@ -259,7 +315,15 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
                     uploadedAt: new Date().toISOString()
                 };
 
-                setPresentationFiles(prev => [...prev, newFile]);
+                const updatedFiles = [...presentationFiles, newFile];
+                prevSpeakerDataRef.current.presentationFiles = updatedFiles;
+
+                onUpdate({
+                    speakers,
+                    translators,
+                    presentationFiles: updatedFiles
+                });
+
                 setUploadingFile(false);
                 setSuccess('Presentation file uploaded successfully');
             }, 1000);
@@ -268,28 +332,21 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
             setError('Failed to upload file');
             setUploadingFile(false);
         }
-    };
+    }, [presentationFiles, speakers, translators, onUpdate]);
 
     // Remove presentation file
-    const handleRemoveFile = (fileId) => {
-        setPresentationFiles(prev => prev.filter(f => f.id !== fileId));
-        setSuccess('File removed');
-    };
+    const handleRemoveFile = useCallback((fileId) => {
+        const updatedFiles = presentationFiles.filter(f => f.id !== fileId);
+        prevSpeakerDataRef.current.presentationFiles = updatedFiles;
 
-    // Save all changes
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            // API call to save speaker data
-            setTimeout(() => {
-                setSaving(false);
-                setSuccess('Speaker data saved successfully');
-            }, 1000);
-        } catch (err) {
-            setError('Failed to save speaker data');
-            setSaving(false);
-        }
-    };
+        onUpdate({
+            speakers,
+            translators,
+            presentationFiles: updatedFiles
+        });
+
+        setSuccess('File removed');
+    }, [presentationFiles, speakers, translators, onUpdate]);
 
     // Clear messages
     useEffect(() => {
@@ -317,15 +374,13 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
                 <Typography variant="h5" fontWeight="600">
                     Speakers & Presentation
                 </Typography>
-                {!isCreateMode && (
-                    <Button
-                        variant="contained"
-                        startIcon={saving ? <CircularProgress size={20} /> : <Add />}
-                        onClick={handleSave}
-                        disabled={saving}
-                    >
-                        {saving ? 'Saving...' : 'Save Changes'}
-                    </Button>
+                {isViewMode && (
+                    <Chip
+                        label="View Mode"
+                        color="info"
+                        variant="outlined"
+                        size="small"
+                    />
                 )}
             </Box>
 
@@ -341,55 +396,72 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
                 </Alert>
             )}
 
+            {/* View mode info */}
+            {isViewMode && speakers.length === 0 && translators.length === 0 && presentationFiles.length === 0 && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    No speakers, translators, or presentations added for this event.
+                </Alert>
+            )}
+
             <Grid container spacing={3} sx={{ gap: 3, width: '100%', minHeight: '400px' }}>
                 {/* Speakers Section */}
                 <Grid item size={{ lg: 4, md: 6, xs: 12 }}>
-                    <Card sx={{ height: '100%', backgroundColor: 'background.main', border: '1px solid', borderColor: 'divider' }}>
+                    <Card sx={{
+                        height: '100%',
+                        backgroundColor: 'background.main',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        opacity: isViewMode ? 0.9 : 1
+                    }}>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                                 <Person color="primary" />
                                 <Typography variant="h6">
-                                    Speakers
+                                    Speakers ({speakers.length})
                                 </Typography>
                             </Box>
 
-                            {/* User Selection Button */}
-                            <Button
-                                variant="outlined"
-                                startIcon={<Person />}
-                                onClick={() => openUserSelectionDrawer('speaker')}
-                                fullWidth
-                                sx={{ mb: 2 }}
-                            >
-                                Select Users as Speakers
-                            </Button>
+                            {/* User Selection Button - Only in edit mode */}
+                            {isEditMode && (
+                                <>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<Person />}
+                                        onClick={() => openUserSelectionDrawer('speaker')}
+                                        fullWidth
+                                        sx={{ mb: 2 }}
+                                    >
+                                        Select Users as Speakers
+                                    </Button>
 
-                            {/* Manual Speaker Input */}
-                            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                                <TextField
-                                    label="Add Manual Speaker"
-                                    value={newSpeakerName}
-                                    onChange={(e) => setNewSpeakerName(e.target.value)}
-                                    fullWidth
-                                    placeholder="Enter speaker name"
-                                    size="small"
-                                />
-                                <Button
-                                    variant="contained"
-                                    onClick={handleAddManualSpeaker}
-                                    disabled={!newSpeakerName.trim()}
-                                    sx={{ minWidth: 'auto' }}
-                                >
-                                    <Add />
-                                </Button>
-                            </Box>
+                                    {/* Guest Speaker Input */}
+                                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                                        <TextField
+                                            label="Add Guest Speaker"
+                                            value={newSpeakerName}
+                                            onChange={(e) => setNewSpeakerName(e.target.value)}
+                                            fullWidth
+                                            placeholder="Enter speaker name"
+                                            size="small"
+                                        />
+                                        <Button
+                                            variant="contained"
+                                            onClick={handleAddGuestSpeaker}
+                                            disabled={!newSpeakerName.trim()}
+                                            sx={{ minWidth: 'auto' }}
+                                        >
+                                            <Add />
+                                        </Button>
+                                    </Box>
+                                </>
+                            )}
 
                             {/* Speakers List */}
                             {speakers.length === 0 ? (
                                 <Box sx={{ textAlign: 'center', py: 3 }}>
                                     <Person sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                                     <Typography color="text.secondary">
-                                        No speakers added yet
+                                        {isViewMode ? 'No speakers assigned' : 'No speakers added yet'}
                                     </Typography>
                                 </Box>
                             ) : (
@@ -397,16 +469,26 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
                                     {speakers.map((speaker) => (
                                         <Paper key={speaker.id} variant="outlined" sx={{ p: 2, mb: 1 }}>
                                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Typography variant="subtitle2">
-                                                    {speaker.name}
-                                                </Typography>
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => handleRemoveSpeaker(speaker.id)}
-                                                    color="error"
-                                                >
-                                                    <Clear fontSize="small" />
-                                                </IconButton>
+                                                <Box>
+                                                    <Typography variant="subtitle2">
+                                                        {speaker.name}
+                                                    </Typography>
+                                                    <Chip
+                                                        label={speaker.type === 'user' ? 'User' : 'Guest'}
+                                                        size="small"
+                                                        color={speaker.type === 'user' ? 'primary' : 'secondary'}
+                                                        sx={{ mt: 0.5 }}
+                                                    />
+                                                </Box>
+                                                {isEditMode && (
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleRemoveSpeaker(speaker.id)}
+                                                        color="error"
+                                                    >
+                                                        <Clear fontSize="small" />
+                                                    </IconButton>
+                                                )}
                                             </Box>
                                         </Paper>
                                     ))}
@@ -418,52 +500,62 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
 
                 {/* Translators Section */}
                 <Grid item size={{ lg: 4, md: 6, xs: 12 }}>
-                    <Card sx={{ height: '100%', backgroundColor: 'background.main', border: '1px solid', borderColor: 'divider' }}>
+                    <Card sx={{
+                        height: '100%',
+                        backgroundColor: 'background.main',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        opacity: isViewMode ? 0.9 : 1
+                    }}>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                                 <Translate color="primary" />
                                 <Typography variant="h6">
-                                    Translators
+                                    Translators ({translators.length})
                                 </Typography>
                             </Box>
 
-                            {/* User Selection Button */}
-                            <Button
-                                variant="outlined"
-                                startIcon={<Translate />}
-                                onClick={() => openUserSelectionDrawer('translator')}
-                                fullWidth
-                                sx={{ mb: 2 }}
-                            >
-                                Select Users as Translators
-                            </Button>
+                            {/* User Selection Button - Only in edit mode */}
+                            {isEditMode && (
+                                <>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<Translate />}
+                                        onClick={() => openUserSelectionDrawer('translator')}
+                                        fullWidth
+                                        sx={{ mb: 2 }}
+                                    >
+                                        Select Users as Translators
+                                    </Button>
 
-                            {/* Manual Translator Input */}
-                            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                                <TextField
-                                    label="Add Manual Translator"
-                                    value={newTranslatorName}
-                                    onChange={(e) => setNewTranslatorName(e.target.value)}
-                                    fullWidth
-                                    placeholder="Enter translator name"
-                                    size="small"
-                                />
-                                <Button
-                                    variant="contained"
-                                    onClick={handleAddManualTranslator}
-                                    disabled={!newTranslatorName.trim()}
-                                    sx={{ minWidth: 'auto' }}
-                                >
-                                    <Add />
-                                </Button>
-                            </Box>
+                                    {/* Guest Translator Input */}
+                                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                                        <TextField
+                                            label="Add Guest Translator"
+                                            value={newTranslatorName}
+                                            onChange={(e) => setNewTranslatorName(e.target.value)}
+                                            fullWidth
+                                            placeholder="Enter translator name"
+                                            size="small"
+                                        />
+                                        <Button
+                                            variant="contained"
+                                            onClick={handleAddGuestTranslator}
+                                            disabled={!newTranslatorName.trim()}
+                                            sx={{ minWidth: 'auto' }}
+                                        >
+                                            <Add />
+                                        </Button>
+                                    </Box>
+                                </>
+                            )}
 
                             {/* Translators List */}
                             {translators.length === 0 ? (
                                 <Box sx={{ textAlign: 'center', py: 3 }}>
                                     <Translate sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                                     <Typography color="text.secondary">
-                                        No translators added yet
+                                        {isViewMode ? 'No translators assigned' : 'No translators added yet'}
                                     </Typography>
                                 </Box>
                             ) : (
@@ -471,16 +563,26 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
                                     {translators.map((translator) => (
                                         <Paper key={translator.id} variant="outlined" sx={{ p: 2, mb: 1 }}>
                                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Typography variant="subtitle2">
-                                                    {translator.name}
-                                                </Typography>
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => handleRemoveTranslator(translator.id)}
-                                                    color="error"
-                                                >
-                                                    <Clear fontSize="small" />
-                                                </IconButton>
+                                                <Box>
+                                                    <Typography variant="subtitle2">
+                                                        {translator.name}
+                                                    </Typography>
+                                                    <Chip
+                                                        label={translator.type === 'user' ? 'User' : 'Guest'}
+                                                        size="small"
+                                                        color={translator.type === 'user' ? 'primary' : 'secondary'}
+                                                        sx={{ mt: 0.5 }}
+                                                    />
+                                                </Box>
+                                                {isEditMode && (
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleRemoveTranslator(translator.id)}
+                                                        color="error"
+                                                    >
+                                                        <Clear fontSize="small" />
+                                                    </IconButton>
+                                                )}
                                             </Box>
                                         </Paper>
                                     ))}
@@ -492,44 +594,52 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
 
                 {/* Presentation Files Section */}
                 <Grid item size={{ lg: 4, md: 12, xs: 12 }}>
-                    <Card sx={{ height: '100%', backgroundColor: 'background.main', border: '1px solid', borderColor: 'divider' }}>
+                    <Card sx={{
+                        height: '100%',
+                        backgroundColor: 'background.main',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        opacity: isViewMode ? 0.9 : 1
+                    }}>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                                 <Slideshow color="primary" />
                                 <Typography variant="h6">
-                                    Presentation Files
+                                    Presentation Files ({presentationFiles.length})
                                 </Typography>
                             </Box>
 
-                            {/* File Upload */}
-                            <Box sx={{ mb: 3 }}>
-                                <input
-                                    type="file"
-                                    id="presentation-upload"
-                                    accept=".ppt,.pptx,.pdf,.key"
-                                    onChange={handleFileUpload}
-                                    style={{ display: 'none' }}
-                                />
-                                <Button
-                                    variant="outlined"
-                                    startIcon={uploadingFile ? <CircularProgress size={20} /> : <Upload />}
-                                    onClick={() => document.getElementById('presentation-upload').click()}
-                                    disabled={uploadingFile}
-                                    fullWidth
-                                >
-                                    {uploadingFile ? 'Uploading...' : 'Upload Presentation File'}
-                                </Button>
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                    Supported formats: PPT, PPTX, PDF, KEY (Max 50MB)
-                                </Typography>
-                            </Box>
+                            {/* File Upload - Only in edit mode */}
+                            {isEditMode && (
+                                <Box sx={{ mb: 3 }}>
+                                    <input
+                                        type="file"
+                                        id="presentation-upload"
+                                        accept=".ppt,.pptx,.pdf,.key"
+                                        onChange={handleFileUpload}
+                                        style={{ display: 'none' }}
+                                    />
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={uploadingFile ? <CircularProgress size={20} /> : <Upload />}
+                                        onClick={() => document.getElementById('presentation-upload').click()}
+                                        disabled={uploadingFile}
+                                        fullWidth
+                                    >
+                                        {uploadingFile ? 'Uploading...' : 'Upload Presentation File'}
+                                    </Button>
+                                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                        Supported formats: PPT, PPTX, PDF, KEY (Max 50MB)
+                                    </Typography>
+                                </Box>
+                            )}
 
                             {/* Files List */}
                             {presentationFiles.length === 0 ? (
-                                <Box sx={{ textAlign: 'center', py: 3, mt: 6 }}>
+                                <Box sx={{ textAlign: 'center', py: 3, mt: isEditMode ? 6 : 3 }}>
                                     <Slideshow sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                                     <Typography color="text.secondary">
-                                        No presentation files uploaded yet
+                                        {isViewMode ? 'No presentation files' : 'No presentation files uploaded yet'}
                                     </Typography>
                                 </Box>
                             ) : (
@@ -547,18 +657,22 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
                                                                 {file.size} • {file.type.toUpperCase()}
                                                             </Typography>
                                                         </Box>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => handleRemoveFile(file.id)}
-                                                            color="error"
-                                                        >
-                                                            <Delete fontSize="small" />
-                                                        </IconButton>
+                                                        {isEditMode && (
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleRemoveFile(file.id)}
+                                                                color="error"
+                                                            >
+                                                                <Delete fontSize="small" />
+                                                            </IconButton>
+                                                        )}
                                                     </Box>
                                                     <Button
                                                         size="small"
                                                         startIcon={<Slideshow />}
                                                         sx={{ mt: 1 }}
+                                                        href={file.url}
+                                                        target="_blank"
                                                     >
                                                         View File
                                                     </Button>
@@ -573,104 +687,106 @@ const SpeakerTab = ({ eventData, eventId, onUpdate, isCreateMode }) => {
                 </Grid>
             </Grid>
 
-            {/* User Selection Drawer */}
-            <Drawer
-                anchor="right"
-                open={drawerOpen}
-                onClose={closeDrawer}
-                PaperProps={{ sx: { width: { xs: '100%', sm: 500 } } }}
-            >
-                <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    {/* Header */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6">
-                            Select {selectionType === 'speaker' ? 'Speakers' : 'Translators'}
-                        </Typography>
-                        <IconButton onClick={closeDrawer}>
-                            <Close />
-                        </IconButton>
-                    </Box>
+            {/* User Selection Drawer - Only in edit mode */}
+            {isEditMode && (
+                <Drawer
+                    anchor="right"
+                    open={drawerOpen}
+                    onClose={closeDrawer}
+                    PaperProps={{ sx: { width: { xs: '100%', sm: 500 } } }}
+                >
+                    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        {/* Header */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Typography variant="h6">
+                                Select {selectionType === 'speaker' ? 'Speakers' : 'Translators'}
+                            </Typography>
+                            <IconButton onClick={closeDrawer}>
+                                <Close />
+                            </IconButton>
+                        </Box>
 
-                    {/* Search */}
-                    <TextField
-                        fullWidth
-                        placeholder="Search users by name or email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        InputProps={{
-                            startAdornment: <Search sx={{ color: 'text.secondary', mr: 1 }} />
-                        }}
-                        sx={{ mb: 2 }}
-                    />
+                        {/* Search */}
+                        <TextField
+                            fullWidth
+                            placeholder="Search users by name or email..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            InputProps={{
+                                startAdornment: <Search sx={{ color: 'text.secondary', mr: 1 }} />
+                            }}
+                            sx={{ mb: 2 }}
+                        />
 
-                    {/* Select All Button */}
-                    <Button
-                        onClick={handleSelectAll}
-                        variant="outlined"
-                        sx={{ mb: 2 }}
-                        fullWidth
-                        disabled={usersLoading}
-                    >
-                        {tempSelection.length === getFilteredUsers().length ? 'Deselect All' : 'Select All'}
-                    </Button>
+                        {/* Select All Button */}
+                        <Button
+                            onClick={handleSelectAll}
+                            variant="outlined"
+                            sx={{ mb: 2 }}
+                            fullWidth
+                            disabled={usersLoading}
+                        >
+                            {tempSelection.length === getFilteredUsers().length ? 'Deselect All' : 'Select All'}
+                        </Button>
 
-                    {/* Users List */}
-                    <Box sx={{ flex: 1, overflow: 'auto' }}>
-                        {usersLoading ? (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                                <CircularProgress />
-                            </Box>
-                        ) : (
-                            <List>
-                                {getFilteredUsers().map((user) => {
-                                    const isSelected = tempSelection.includes(user.id);
-                                    return (
-                                        <ListItem
-                                            key={user.id}
-                                            dense
-                                            button
-                                            onClick={() => handleTempSelectionToggle(user.id)}
-                                        >
-                                            <ListItemIcon>
-                                                <Checkbox
-                                                    edge="start"
-                                                    checked={isSelected}
-                                                    tabIndex={-1}
-                                                    disableRipple
+                        {/* Users List */}
+                        <Box sx={{ flex: 1, overflow: 'auto' }}>
+                            {usersLoading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                                    <CircularProgress />
+                                </Box>
+                            ) : (
+                                <List>
+                                    {getFilteredUsers().map((user) => {
+                                        const isSelected = tempSelection.includes(user.id);
+                                        return (
+                                            <ListItem
+                                                key={user.id}
+                                                dense
+                                                button
+                                                onClick={() => handleTempSelectionToggle(user.id)}
+                                            >
+                                                <ListItemIcon>
+                                                    <Checkbox
+                                                        edge="start"
+                                                        checked={isSelected}
+                                                        tabIndex={-1}
+                                                        disableRipple
+                                                    />
+                                                </ListItemIcon>
+                                                <ListItemText
+                                                    primary={user.name}
+                                                    secondary={user.email}
                                                 />
-                                            </ListItemIcon>
+                                            </ListItem>
+                                        );
+                                    })}
+                                    {getFilteredUsers().length === 0 && (
+                                        <ListItem>
                                             <ListItemText
-                                                primary={user.name}
-                                                secondary={user.email}
+                                                primary="No users found"
+                                                secondary="Try adjusting your search terms"
                                             />
                                         </ListItem>
-                                    );
-                                })}
-                                {getFilteredUsers().length === 0 && (
-                                    <ListItem>
-                                        <ListItemText
-                                            primary="No users found"
-                                            secondary="Try adjusting your search terms"
-                                        />
-                                    </ListItem>
-                                )}
-                            </List>
-                        )}
-                    </Box>
+                                    )}
+                                </List>
+                            )}
+                        </Box>
 
-                    {/* Footer Actions */}
-                    <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                        <Button
-                            variant="contained"
-                            onClick={saveUserSelection}
-                            fullWidth
-                            disabled={tempSelection.length === 0}
-                        >
-                            Save Selection ({tempSelection.length})
-                        </Button>
+                        {/* Footer Actions */}
+                        <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                            <Button
+                                variant="contained"
+                                onClick={saveUserSelection}
+                                fullWidth
+                                disabled={tempSelection.length === 0}
+                            >
+                                Save Selection ({tempSelection.length})
+                            </Button>
+                        </Box>
                     </Box>
-                </Box>
-            </Drawer>
+                </Drawer>
+            )}
         </Box>
     );
 };

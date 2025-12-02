@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
     Box,
     Typography,
@@ -16,7 +16,8 @@ import {
     Grid,
     Card,
     CardContent,
-    CardHeader
+    CardHeader,
+    Chip
 } from "@mui/material";
 import {
     Close,
@@ -25,19 +26,42 @@ import {
 } from "@mui/icons-material";
 import api from "../../../api";
 
-const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreateMode }) => {
+const SingerTab = ({
+    team,
+    assignedMembers,
+    onUpdate,
+    isViewMode,
+    isEditMode
+}) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [teamMembers, setTeamMembers] = useState([]);
-    const [worshipLeaders, setWorshipLeaders] = useState([]);
-    const [singers, setSingers] = useState([]);
+    const [worshipLeaders, setWorshipLeaders] = useState(() => {
+        if (!assignedMembers) return [];
+        return assignedMembers.filter(member =>
+            member.role_in_event === 'worship_leader'
+        );
+    });
+    const [singers, setSingers] = useState(() => {
+        if (!assignedMembers) return [];
+        return assignedMembers.filter(member =>
+            member.role_in_event === 'singer'
+        );
+    });
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectionType, setSelectionType] = useState(null);
     const [tempSelection, setTempSelection] = useState([]);
 
-    // Use refs to track previous values and prevent infinite loops
+    // Use refs to track previous values
     const prevWorshipLeadersRef = useRef([]);
     const prevSingersRef = useRef([]);
+    const isInitialMount = useRef(true);
+
+    // Initialize refs on mount
+    useEffect(() => {
+        prevWorshipLeadersRef.current = worshipLeaders;
+        prevSingersRef.current = singers;
+    }, []);
 
     // Fetch team members when component mounts
     useEffect(() => {
@@ -64,46 +88,43 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
         fetchTeamMembers();
     }, [team?.id]);
 
-    // Initialize assignments when assignedMembers prop changes
-    useEffect(() => {
-        if (assignedMembers) {
-            const wl = assignedMembers.filter(member =>
-                member.role_in_event === 'worship_leader'
-            );
-            const singer = assignedMembers.filter(member =>
-                member.role_in_event === 'singer'
-            );
-            setWorshipLeaders(wl);
-            setSingers(singer);
-
-            // Update refs with initial values
-            prevWorshipLeadersRef.current = wl;
-            prevSingersRef.current = singer;
-        }
-    }, [assignedMembers]);
-
     // Update parent only when there are actual changes
-    // In SingerTab, replace the useEffect with this:
     useEffect(() => {
-        const hasWorshipLeadersChanged =
-            JSON.stringify(worshipLeaders.map(w => w.user_id).sort()) !==
-            JSON.stringify(prevWorshipLeadersRef.current.map(w => w.user_id).sort());
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
 
+        const currentWLIds = worshipLeaders.map(w => w.user_id).sort();
+        const prevWLIds = prevWorshipLeadersRef.current.map(w => w.user_id).sort();
+
+        const currentSingerIds = singers.map(s => s.user_id).sort();
+        const prevSingerIds = prevSingersRef.current.map(s => s.user_id).sort();
+
+        const hasWorshipLeadersChanged =
+            JSON.stringify(currentWLIds) !== JSON.stringify(prevWLIds);
         const hasSingersChanged =
-            JSON.stringify(singers.map(s => s.user_id).sort()) !==
-            JSON.stringify(prevSingersRef.current.map(s => s.user_id).sort());
+            JSON.stringify(currentSingerIds) !== JSON.stringify(prevSingerIds);
 
         if (hasWorshipLeadersChanged || hasSingersChanged) {
             const allAssignments = [
-                ...worshipLeaders.map(wl => ({ ...wl, role_in_event: 'worship_leader' })),
-                ...singers.map(singer => ({ ...singer, role_in_event: 'singer' }))
+                ...worshipLeaders.map(wl => ({
+                    ...wl,
+                    role_in_event: 'worship_leader'
+                })),
+                ...singers.map(singer => ({
+                    ...singer,
+                    role_in_event: 'singer'
+                }))
             ];
-            onAssignmentUpdate(allAssignments);
 
+            onUpdate(allAssignments);
+
+            // Update refs AFTER calling onUpdate
             prevWorshipLeadersRef.current = [...worshipLeaders];
             prevSingersRef.current = [...singers];
         }
-    }, [worshipLeaders, singers, onAssignmentUpdate]);
+    }, [worshipLeaders, singers, onUpdate]);
 
     // Open drawer for selection
     const openSelectionDrawer = (type) => {
@@ -134,7 +155,6 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
         } else {
             setSingers(selectedMembers);
         }
-        updateParentAssignment(); // Add this line
         closeDrawer();
     };
 
@@ -157,14 +177,14 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
     };
 
     // Remove member from worship leaders
-    const removeWorshipLeader = (userId) => {
+    const removeWorshipLeader = useCallback((userId) => {
         setWorshipLeaders(prev => prev.filter(wl => wl.user_id !== userId));
-    };
+    }, []);
 
     // Remove member from singers
-    const removeSinger = (userId) => {
+    const removeSinger = useCallback((userId) => {
         setSingers(prev => prev.filter(singer => singer.user_id !== userId));
-    };
+    }, []);
 
     // Check if member is assigned to other role
     const getMemberAssignmentStatus = (userId) => {
@@ -187,9 +207,20 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
 
     return (
         <Box sx={{ gap: 3, width: '100%', px: 3 }}>
-            <Typography variant="h5" fontWeight="600" sx={{ mb: 3 }}>
-                Worship Leader & Singers
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h5" fontWeight="600">
+                    Worship Leader & Singers
+                </Typography>
+                {isViewMode && (
+                    <Chip
+                        label="View Mode"
+                        color="info"
+                        variant="outlined"
+                        size="small"
+                    />
+                )}
+            </Box>
+
             {/* Error Message */}
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
@@ -201,31 +232,39 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
             {(worshipLeaders.length > 0 || singers.length > 0) && (
                 <Paper sx={{
                     p: 2,
-                    bgcolor: 'background.default',
+                    bgcolor: 'background.paper',
                     color: 'text.main',
                     mb: 2,
                     borderRadius: 1,
                     border: '1px solid',
                     borderColor: 'divider'
-                }} elevation={0}>
+                }} elevation={1}>
                     <Typography variant="body2">
                         <strong>Total Assigned:</strong> {worshipLeaders.length} Worship Leader(s), {singers.length} Singer(s)
                     </Typography>
                 </Paper>
             )}
 
+            {/* View mode info */}
+            {isViewMode && worshipLeaders.length === 0 && singers.length === 0 && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                    No worship leaders or singers assigned for this event.
+                </Alert>
+            )}
+
             {/* Dual Card Layout */}
             <Grid container spacing={3} sx={{ gap: 3, width: '100%', minHeight: '500px', maxWidth: 1600 }}>
                 {/* Worship Leader Card */}
                 <Grid item size={{ xs: 12, lg: 6 }}>
-                    <Card elevation={2} sx={{
+                    <Card elevation={1} sx={{
                         height: '100%',
                         backgroundColor: 'background.main',
                         border: '1px solid',
                         borderColor: 'divider',
                         display: 'flex',
                         flexDirection: 'column',
-                        p: 1
+                        p: 1,
+                        opacity: isViewMode ? 0.9 : 1
                     }}>
                         <CardHeader
                             title={
@@ -233,16 +272,18 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                                     Worship Leaders
                                 </Typography>
                             }
-                            subheader="Select worship leaders for this event"
+                            subheader={isViewMode ? "Worship leaders for this event" : "Select worship leaders for this event"}
                             action={
-                                <Button
-                                    startIcon={<Add />}
-                                    onClick={() => openSelectionDrawer('worship_leader')}
-                                    variant="outlined"
-                                    size="small"
-                                >
-                                    {worshipLeaders.length > 0 ? 'Edit' : 'Select'}
-                                </Button>
+                                isEditMode && (
+                                    <Button
+                                        startIcon={<Add />}
+                                        onClick={() => openSelectionDrawer('worship_leader')}
+                                        variant="contained"
+                                        size="small"
+                                    >
+                                        {worshipLeaders.length > 0 ? 'Edit' : 'Select'}
+                                    </Button>
+                                )
                             }
                         />
                         <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 0 }}>
@@ -257,7 +298,7 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                                     p: 2
                                 }}>
                                     <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 1 }}>
-                                        No worship leaders selected
+                                        {isViewMode ? 'No worship leaders assigned' : 'No worship leaders selected'}
                                     </Typography>
                                 </Box>
                             ) : (
@@ -268,13 +309,15 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                                                 key={leader.user_id}
                                                 sx={{ px: 2 }}
                                                 secondaryAction={
-                                                    <IconButton
-                                                        edge="end"
-                                                        size="small"
-                                                        onClick={() => removeWorshipLeader(leader.user_id)}
-                                                    >
-                                                        <Close />
-                                                    </IconButton>
+                                                    isEditMode && (
+                                                        <IconButton
+                                                            edge="end"
+                                                            size="small"
+                                                            onClick={() => removeWorshipLeader(leader.user_id)}
+                                                        >
+                                                            <Close />
+                                                        </IconButton>
+                                                    )
                                                 }
                                             >
                                                 <ListItemIcon sx={{ minWidth: 40 }}>
@@ -282,13 +325,14 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                                                 </ListItemIcon>
                                                 <ListItemText
                                                     primary={leader.name}
+                                                    secondary={leader.email || ''}
                                                 />
                                             </ListItem>
                                         ))}
                                     </List>
                                     <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                                         <Typography variant="body2" color="text.secondary">
-                                            {worshipLeaders.length} worship leader(s) selected
+                                            {worshipLeaders.length} worship leader(s) {isViewMode ? 'assigned' : 'selected'}
                                         </Typography>
                                     </Box>
                                 </Box>
@@ -299,14 +343,15 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
 
                 {/* Singers Card */}
                 <Grid item size={{ xs: 12, lg: 6 }}>
-                    <Card elevation={2} sx={{
+                    <Card elevation={1} sx={{
                         height: '100%',
                         backgroundColor: 'background.main',
                         border: '1px solid',
                         borderColor: 'divider',
                         display: 'flex',
                         p: 1,
-                        flexDirection: 'column'
+                        flexDirection: 'column',
+                        opacity: isViewMode ? 0.9 : 1
                     }}>
                         <CardHeader
                             title={
@@ -314,16 +359,18 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                                     Singers
                                 </Typography>
                             }
-                            subheader="Select singers for this event"
+                            subheader={isViewMode ? "Singers for this event" : "Select singers for this event"}
                             action={
-                                <Button
-                                    startIcon={<Add />}
-                                    onClick={() => openSelectionDrawer('singer')}
-                                    variant="outlined"
-                                    size="small"
-                                >
-                                    {singers.length > 0 ? 'Edit' : 'Select'}
-                                </Button>
+                                isEditMode && (
+                                    <Button
+                                        startIcon={<Add />}
+                                        onClick={() => openSelectionDrawer('singer')}
+                                        variant="contained"
+                                        size="small"
+                                    >
+                                        {singers.length > 0 ? 'Edit' : 'Select'}
+                                    </Button>
+                                )
                             }
                         />
                         <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 0 }}>
@@ -338,7 +385,7 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                                     p: 2
                                 }}>
                                     <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 1 }}>
-                                        No singers selected
+                                        {isViewMode ? 'No singers assigned' : 'No singers selected'}
                                     </Typography>
                                 </Box>
                             ) : (
@@ -349,13 +396,15 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                                                 key={singer.user_id}
                                                 sx={{ px: 2 }}
                                                 secondaryAction={
-                                                    <IconButton
-                                                        edge="end"
-                                                        size="small"
-                                                        onClick={() => removeSinger(singer.user_id)}
-                                                    >
-                                                        <Close />
-                                                    </IconButton>
+                                                    isEditMode && (
+                                                        <IconButton
+                                                            edge="end"
+                                                            size="small"
+                                                            onClick={() => removeSinger(singer.user_id)}
+                                                        >
+                                                            <Close />
+                                                        </IconButton>
+                                                    )
                                                 }
                                             >
                                                 <ListItemIcon sx={{ minWidth: 40 }}>
@@ -363,13 +412,14 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                                                 </ListItemIcon>
                                                 <ListItemText
                                                     primary={singer.name}
+                                                    secondary={singer.email || ''}
                                                 />
                                             </ListItem>
                                         ))}
                                     </List>
                                     <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                                         <Typography variant="body2" color="text.secondary">
-                                            {singers.length} singer(s) selected
+                                            {singers.length} singer(s) {isViewMode ? 'assigned' : 'selected'}
                                         </Typography>
                                     </Box>
                                 </Box>
@@ -379,79 +429,98 @@ const SingerTab = ({ team, eventId, assignedMembers, onAssignmentUpdate, isCreat
                 </Grid>
             </Grid>
 
-            {/* Selection Drawer */}
-            <Drawer
-                anchor="right"
-                open={drawerOpen}
-                onClose={closeDrawer}
-                PaperProps={{ sx: { width: { xs: '100%', sm: 400 } } }}
-            >
-                <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    {/* Header */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6">
-                            Select {selectionType === 'worship_leader' ? 'Worship Leaders' : 'Singers'}
-                        </Typography>
-                        <IconButton onClick={closeDrawer}>
-                            <Close />
-                        </IconButton>
-                    </Box>
+            {/* Selection Drawer - Only in edit mode */}
+            {isEditMode && (
+                <Drawer
+                    anchor="right"
+                    open={drawerOpen}
+                    onClose={closeDrawer}
+                    PaperProps={{ sx: { width: { xs: '100%', sm: 400 } } }}
+                >
+                    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        {/* Header */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Typography variant="h6">
+                                Select {selectionType === 'worship_leader' ? 'Worship Leaders' : 'Singers'}
+                            </Typography>
+                            <IconButton onClick={closeDrawer}>
+                                <Close />
+                            </IconButton>
+                        </Box>
 
-                    {/* Select All Button */}
-                    <Button
-                        onClick={handleSelectAll}
-                        variant="outlined"
-                        sx={{ mb: 2 }}
-                        fullWidth
-                    >
-                        {tempSelection.length === teamMembers.length ? 'Deselect All' : 'Select All'}
-                    </Button>
-
-                    {/* Members List */}
-                    <Box sx={{ flex: 1, overflow: 'auto' }}>
-                        <List>
-                            {teamMembers.map((member) => {
-                                const isSelected = tempSelection.includes(member.user_id);
-                                const assignmentStatus = getMemberAssignmentStatus(member.user_id);
-
-                                return (
-                                    <ListItem
-                                        key={member.user_id}
-                                        dense
-                                        button
-                                        onClick={() => handleTempSelectionToggle(member.user_id)}
-                                    >
-                                        <ListItemIcon>
-                                            <Checkbox
-                                                edge="start"
-                                                checked={isSelected}
-                                                tabIndex={-1}
-                                                disableRipple
-                                            />
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primary={member.name}
-                                            secondary={member.positions}
-                                        />
-                                    </ListItem>
-                                );
-                            })}
-                        </List>
-                    </Box>
-
-                    {/* Footer Actions */}
-                    <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                        {/* Select All Button */}
                         <Button
-                            variant="contained"
-                            onClick={saveSelection}
+                            onClick={handleSelectAll}
+                            variant="outlined"
+                            sx={{ mb: 2 }}
                             fullWidth
                         >
-                            Save Selection ({tempSelection.length})
+                            {tempSelection.length === teamMembers.length ? 'Deselect All' : 'Select All'}
                         </Button>
+
+                        {/* Members List */}
+                        <Box sx={{ flex: 1, overflow: 'auto' }}>
+                            <List>
+                                {teamMembers.map((member) => {
+                                    const isSelected = tempSelection.includes(member.user_id);
+                                    const assignmentStatus = getMemberAssignmentStatus(member.user_id);
+
+                                    return (
+                                        <ListItem
+                                            key={member.user_id}
+                                            dense
+                                            button
+                                            onClick={() => handleTempSelectionToggle(member.user_id)}
+                                            disabled={!isEditMode}
+                                        >
+                                            <ListItemIcon>
+                                                <Checkbox
+                                                    edge="start"
+                                                    checked={isSelected}
+                                                    tabIndex={-1}
+                                                    disableRipple
+                                                    disabled={!isEditMode}
+                                                />
+                                            </ListItemIcon>
+                                            <ListItemText
+                                                primary={member.name}
+                                                secondary={
+                                                    <Box>
+                                                        <Typography variant="caption" display="block">
+                                                            {member.positions || 'Member'}
+                                                        </Typography>
+                                                        {assignmentStatus && (
+                                                            <Chip
+                                                                label={assignmentStatus}
+                                                                size="small"
+                                                                variant="outlined"
+                                                                color="info"
+                                                                sx={{ mt: 0.5 }}
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                }
+                                            />
+                                        </ListItem>
+                                    );
+                                })}
+                            </List>
+                        </Box>
+
+                        {/* Footer Actions */}
+                        <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                            <Button
+                                variant="contained"
+                                onClick={saveSelection}
+                                fullWidth
+                            >
+                                Save Selection ({tempSelection.length})
+                            </Button>
+                        </Box>
                     </Box>
-                </Box>
-            </Drawer>
-        </Box >
+                </Drawer>
+            )}
+        </Box>
     );
 };
 

@@ -17,17 +17,21 @@ import {
     Card,
     CardContent,
     CardHeader,
-    TextField,
-    Chip
+    Chip,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem
 } from "@mui/material";
 import {
     Close,
     Add,
-    Person
+    Person,
+    Videocam
 } from "@mui/icons-material";
 import api from "../../../api";
 
-const UsherTab = ({
+const MultimediaTab = ({
     team,
     assignedMembers = [],
     onUpdate,
@@ -37,36 +41,42 @@ const UsherTab = ({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [teamMembers, setTeamMembers] = useState([]);
-    const [ushers, setUshers] = useState(() => {
+    const [techTeam, setTechTeam] = useState(() => {
         if (!assignedMembers || assignedMembers.length === 0) return [];
-        return assignedMembers.filter(member =>
-            member.role_in_event === 'usher'
-        );
+        return assignedMembers;
     });
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [tempSelection, setTempSelection] = useState([]);
-    const [usherDetails, setUsherDetails] = useState(() => {
-        const details = {};
+    const [techRoles, setTechRoles] = useState(() => {
+        const roles = {};
         if (assignedMembers && assignedMembers.length > 0) {
-            assignedMembers.forEach(usher => {
-                if (usher.role_in_event === 'usher') {
-                    details[usher.user_id] = usher.details || '';
-                }
+            assignedMembers.forEach(member => {
+                roles[member.user_id] = member.tech_roles || [];
             });
         }
-        return details;
+        return roles;
     });
 
+    // Tech role options
+    const roleOptions = [
+        { value: 'audio', label: 'Audio Engineer' },
+        { value: 'video', label: 'Video Operator' },
+        { value: 'projection', label: 'Projection/Lyrics' },
+        { value: 'lighting', label: 'Lighting Operator' },
+        { value: 'streaming', label: 'Live Streaming' },
+        { value: 'stage_tech', label: 'Stage Technician' }
+    ];
+
     // Use ref to track previous values
-    const prevUshersRef = useRef([]);
+    const prevTechTeamRef = useRef([]);
     const isInitialMount = useRef(true);
 
     // Initialize refs on mount
     useEffect(() => {
-        prevUshersRef.current = ushers;
+        prevTechTeamRef.current = techTeam;
     }, []);
 
-    // Fetch team members when component mounts
+    // Fetch team members
     useEffect(() => {
         const fetchTeamMembers = async () => {
             if (!team?.id) return;
@@ -98,36 +108,35 @@ const UsherTab = ({
             return;
         }
 
-        const currentUsherIds = ushers.map(u => u.user_id).sort();
-        const prevUsherIds = prevUshersRef.current.map(u => u.user_id).sort();
+        const currentTeamIds = techTeam.map(t => t.user_id).sort();
+        const prevTeamIds = prevTechTeamRef.current.map(t => t.user_id).sort();
 
-        const hasUshersChanged = JSON.stringify(currentUsherIds) !== JSON.stringify(prevUsherIds);
+        const hasTeamChanged = JSON.stringify(currentTeamIds) !== JSON.stringify(prevTeamIds);
 
-        // Check if details changed for existing ushers
-        const hasDetailsChanged = ushers.some((usher, index) => {
-            const prevUsher = prevUshersRef.current[index];
-            return prevUsher && usherDetails[usher.user_id] !== prevUsher.details;
+        // Check if roles changed for existing members
+        const hasRolesChanged = techTeam.some((member, index) => {
+            const prevMember = prevTechTeamRef.current[index];
+            return prevMember && JSON.stringify(techRoles[member.user_id]) !== JSON.stringify(prevMember.tech_roles);
         });
 
-        if (hasUshersChanged || hasDetailsChanged) {
-            const allAssignments = ushers.map(usher => ({
-                ...usher,
-                role_in_event: 'usher',
-                details: usherDetails[usher.user_id] || ''
+        if (hasTeamChanged || hasRolesChanged) {
+            const membersWithRoles = techTeam.map(member => ({
+                ...member,
+                tech_roles: techRoles[member.user_id] || []
             }));
 
-            onUpdate(allAssignments);
-            prevUshersRef.current = [...ushers];
+            onUpdate(membersWithRoles);
+            prevTechTeamRef.current = [...techTeam];
         }
-    }, [ushers, usherDetails, onUpdate]);
+    }, [techTeam, techRoles, onUpdate]);
 
     // Open drawer for selection
     const openSelectionDrawer = useCallback(() => {
         if (!isEditMode) return;
 
-        setTempSelection(ushers.map(usher => usher.user_id));
+        setTempSelection(techTeam.map(member => member.user_id));
         setDrawerOpen(true);
-    }, [ushers, isEditMode]);
+    }, [techTeam, isEditMode]);
 
     // Close drawer without saving
     const closeDrawer = () => {
@@ -141,16 +150,15 @@ const UsherTab = ({
             tempSelection.includes(member.user_id)
         );
 
-        // Initialize details for new ushers
-        const newDetails = { ...usherDetails };
+        const newRoles = { ...techRoles };
         selectedMembers.forEach(member => {
-            if (!newDetails[member.user_id]) {
-                newDetails[member.user_id] = '';
+            if (!newRoles[member.user_id]) {
+                newRoles[member.user_id] = [];
             }
         });
 
-        setUshers(selectedMembers);
-        setUsherDetails(newDetails);
+        setTechTeam(selectedMembers);
+        setTechRoles(newRoles);
         closeDrawer();
     };
 
@@ -172,22 +180,21 @@ const UsherTab = ({
         }
     };
 
-    // Remove usher
-    const removeUsher = useCallback((userId) => {
-        setUshers(prev => prev.filter(usher => usher.user_id !== userId));
-        // Remove details for removed usher
-        setUsherDetails(prev => {
-            const newDetails = { ...prev };
-            delete newDetails[userId];
-            return newDetails;
+    // Remove tech member
+    const removeTechMember = useCallback((userId) => {
+        setTechTeam(prev => prev.filter(member => member.user_id !== userId));
+        setTechRoles(prev => {
+            const newRoles = { ...prev };
+            delete newRoles[userId];
+            return newRoles;
         });
     }, []);
 
-    // Update usher details
-    const handleDetailChange = useCallback((userId, detail) => {
-        setUsherDetails(prev => ({
+    // Update tech roles for a member
+    const handleRoleChange = useCallback((userId, roles) => {
+        setTechRoles(prev => ({
             ...prev,
-            [userId]: detail
+            [userId]: roles
         }));
     }, []);
 
@@ -203,7 +210,7 @@ const UsherTab = ({
         <Box sx={{ gap: 3, width: '100%', px: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h5" fontWeight="600">
-                    Ushers & Prayers
+                    Multimedia & Tech Team
                 </Typography>
                 {isViewMode && (
                     <Chip
@@ -223,14 +230,14 @@ const UsherTab = ({
             )}
 
             {/* View mode info */}
-            {isViewMode && ushers.length === 0 && (
+            {isViewMode && techTeam.length === 0 && (
                 <Alert severity="info" sx={{ mb: 2 }}>
-                    No ushers assigned for this event.
+                    No multimedia/tech team assigned for this event.
                 </Alert>
             )}
 
-            {/* Summary - Always show when there are any assignments */}
-            {ushers.length > 0 && (
+            {/* Summary */}
+            {techTeam.length > 0 && (
                 <Paper sx={{
                     p: 2,
                     bgcolor: 'background.paper',
@@ -241,7 +248,7 @@ const UsherTab = ({
                     borderColor: 'divider'
                 }} elevation={1}>
                     <Typography variant="body2">
-                        <strong>Total Assigned:</strong> {ushers.length} Usher(s)
+                        <strong>Team Members:</strong> {techTeam.length} person(s) assigned to tech roles
                     </Typography>
                 </Paper>
             )}
@@ -255,17 +262,17 @@ const UsherTab = ({
                         border: '1px solid',
                         borderColor: 'divider',
                         display: 'flex',
-                        p: 1,
                         flexDirection: 'column',
+                        p: 1,
                         opacity: isViewMode ? 0.9 : 1
                     }}>
                         <CardHeader
                             title={
                                 <Typography variant="h6">
-                                    Ushers
+                                    Tech Team Members
                                 </Typography>
                             }
-                            subheader={isViewMode ? "Ushers for this event" : "Select ushers and specify their roles for this event"}
+                            subheader={isViewMode ? "Multimedia and technical team for this event" : "Assign team members to multimedia and technical roles"}
                             action={
                                 isEditMode && (
                                     <Button
@@ -274,13 +281,13 @@ const UsherTab = ({
                                         variant="contained"
                                         size="small"
                                     >
-                                        {ushers.length > 0 ? 'Edit Ushers' : 'Select Ushers'}
+                                        {techTeam.length > 0 ? 'Edit Team' : 'Select Team'}
                                     </Button>
                                 )
                             }
                         />
                         <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 0 }}>
-                            {ushers.length === 0 ? (
+                            {techTeam.length === 0 ? (
                                 <Box sx={{
                                     flex: 1,
                                     display: 'flex',
@@ -290,8 +297,12 @@ const UsherTab = ({
                                     minHeight: 200,
                                     p: 2
                                 }}>
-                                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 1 }}>
-                                        {isViewMode ? 'No ushers assigned' : 'No ushers selected'}
+                                    <Videocam sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                                        {isViewMode ? 'No Tech Team Assigned' : 'No Tech Team Assigned'}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                        {isViewMode ? 'No multimedia/tech team assigned' : 'Add multimedia and technical team members'}
                                     </Typography>
                                     {isEditMode && (
                                         <Button
@@ -300,16 +311,16 @@ const UsherTab = ({
                                             variant="outlined"
                                             size="small"
                                         >
-                                            Add Ushers
+                                            Add Team
                                         </Button>
                                     )}
                                 </Box>
                             ) : (
                                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                                     <List dense sx={{ flex: 1, overflow: 'auto', p: 0 }}>
-                                        {ushers.map((usher) => (
+                                        {techTeam.map((member) => (
                                             <ListItem
-                                                key={usher.user_id}
+                                                key={member.user_id}
                                                 sx={{
                                                     px: 2,
                                                     py: 1.5,
@@ -317,18 +328,6 @@ const UsherTab = ({
                                                     alignItems: 'center',
                                                     gap: 2
                                                 }}
-                                                secondaryAction={
-                                                    isEditMode && (
-                                                        <IconButton
-                                                            edge="end"
-                                                            size="small"
-                                                            onClick={() => removeUsher(usher.user_id)}
-                                                            sx={{ mr: 1 }}
-                                                        >
-                                                            <Close />
-                                                        </IconButton>
-                                                    )
-                                                }
                                             >
                                                 {/* Person Icon */}
                                                 <ListItemIcon sx={{ minWidth: 40 }}>
@@ -336,43 +335,69 @@ const UsherTab = ({
                                                 </ListItemIcon>
 
                                                 {/* Username */}
-                                                <Typography variant="subtitle1" fontWeight="medium" sx={{ minWidth: 150 }}>
-                                                    {usher.name}
+                                                <Typography variant="subtitle1" fontWeight="medium" noWrap sx={{ width: '100%' }}>
+                                                    {member.name}
                                                 </Typography>
 
-                                                {/* Text Field for Details */}
-                                                {isEditMode ? (
-                                                    <TextField
-                                                        fullWidth
+                                                {/* Role Selection */}
+                                                <FormControl fullWidth size="small">
+                                                    <InputLabel>Tech Roles</InputLabel>
+                                                    {isEditMode ? (
+                                                        <Select
+                                                            multiple
+                                                            value={techRoles[member.user_id] || []}
+                                                            onChange={(e) => handleRoleChange(member.user_id, e.target.value)}
+                                                            label="Tech Roles"
+                                                            renderValue={(selected) => (
+                                                                <Typography variant="body2">
+                                                                    {selected.map(value => roleOptions.find(r => r.value === value)?.label || value).join(', ')}
+                                                                </Typography>
+                                                            )}
+                                                        >
+                                                            {roleOptions.map((role) => (
+                                                                <MenuItem key={role.value} value={role.value}>
+                                                                    {role.label}
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    ) : (
+                                                        <Paper
+                                                            variant="outlined"
+                                                            sx={{
+                                                                p: 1.5,
+                                                                backgroundColor: 'background.default',
+                                                                minHeight: 40,
+                                                                display: 'flex',
+                                                                alignItems: 'center'
+                                                            }}
+                                                        >
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                {techRoles[member.user_id]?.length > 0
+                                                                    ? techRoles[member.user_id].map(value =>
+                                                                        roleOptions.find(r => r.value === value)?.label || value
+                                                                    ).join(', ')
+                                                                    : 'No roles assigned'
+                                                                }
+                                                            </Typography>
+                                                        </Paper>
+                                                    )}
+                                                </FormControl>
+
+                                                {/* Remove Button - Only in edit mode */}
+                                                {isEditMode && (
+                                                    <IconButton
                                                         size="small"
-                                                        placeholder="What will this usher do? (e.g., welcoming on 1st floor, seating guests, offering prayer)"
-                                                        value={usherDetails[usher.user_id] || ''}
-                                                        onChange={(e) => handleDetailChange(usher.user_id, e.target.value)}
-                                                        variant="outlined"
-                                                    />
-                                                ) : (
-                                                    <Paper
-                                                        variant="outlined"
-                                                        sx={{
-                                                            p: 1.5,
-                                                            flex: 1,
-                                                            backgroundColor: 'background.default',
-                                                            minHeight: 40,
-                                                            display: 'flex',
-                                                            alignItems: 'center'
-                                                        }}
+                                                        onClick={() => removeTechMember(member.user_id)}
                                                     >
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            {usherDetails[usher.user_id] || 'No details provided'}
-                                                        </Typography>
-                                                    </Paper>
+                                                        <Close />
+                                                    </IconButton>
                                                 )}
                                             </ListItem>
                                         ))}
                                     </List>
                                     <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                                         <Typography variant="body2" color="text.secondary">
-                                            {ushers.length} usher(s) {isViewMode ? 'assigned' : 'selected'}
+                                            {techTeam.length} team member(s) {isViewMode ? 'assigned' : 'selected'}
                                         </Typography>
                                     </Box>
                                 </Box>
@@ -394,7 +419,7 @@ const UsherTab = ({
                         {/* Header */}
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                             <Typography variant="h6">
-                                Select Ushers
+                                Select Tech Team
                             </Typography>
                             <IconButton onClick={closeDrawer}>
                                 <Close />
@@ -436,7 +461,7 @@ const UsherTab = ({
                                                 secondary={
                                                     <Box>
                                                         <Typography variant="caption" display="block">
-                                                            {member.positions || 'Usher'}
+                                                            {member.positions || 'Tech Team'}
                                                         </Typography>
                                                         {member.email && (
                                                             <Typography variant="caption" color="text.secondary">
@@ -469,4 +494,4 @@ const UsherTab = ({
     );
 };
 
-export default UsherTab;
+export default MultimediaTab;
