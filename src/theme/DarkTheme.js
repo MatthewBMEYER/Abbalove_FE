@@ -19,6 +19,13 @@ const darkTheme = createTheme({
     shadows: [
         'none',
         '0px 4px 20px rgba(0, 0, 0, 0.69)',
+        '0px 4px 20px rgba(0, 0, 0, 0.69)',
+        '0px 4px 20px rgba(0, 0, 0, 0.69)',
+        '0px 4px 20px rgba(0, 0, 0, 0.69)',
+        '0px 4px 20px rgba(0, 0, 0, 0.69)',
+        '0px 4px 20px rgba(0, 0, 0, 0.69)',
+        '0px 4px 20px rgba(0, 0, 0, 0.69)',
+        '0px 4px 20px rgba(0, 0, 0, 0.69)',
     ],
     typography: {
         fontFamily: 'Poppins, sans-serif',
@@ -32,6 +39,11 @@ const darkTheme = createTheme({
                     padding: '8px 16px',
                     whiteSpace: 'nowrap',
                 },
+            },
+        },
+        MuiTypography: {
+            defaultProps: {
+                noWrap: true,
             },
         },
         MuiTextField: {

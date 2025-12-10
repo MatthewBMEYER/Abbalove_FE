@@ -5,6 +5,7 @@ import {
     Tabs,
     Tab,
     Paper,
+    Tooltip,
     CircularProgress,
     Chip,
     Button,
@@ -19,6 +20,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
     Save,
     ArrowBack,
+    Error,
     Visibility,
     Edit as EditIcon
 } from "@mui/icons-material";
@@ -74,8 +76,6 @@ const EventDetails = () => {
         translators: [],
         presentations: [],
         songs: [],
-        multimedia_requirements: [],
-        technical_needs: [],
 
         // Team assignments
         team_assignments: {
@@ -189,9 +189,9 @@ const EventDetails = () => {
 
             let response;
             if (isCreateMode) {
-                response = await api.post('/events/create', saveData);
+                response = await api.post('/core/event/create', saveData);
             } else {
-                response = await api.put(`/events/${eventId}`, saveData);
+                response = await api.put(`core/event/${eventId}`, saveData);
             }
 
             if (response.data.success) {
@@ -360,14 +360,7 @@ const EventDetails = () => {
                         >
                             Back
                         </Button>
-                        {unsavedChanges && (
-                            <Chip
-                                label="Unsaved Changes"
-                                color="warning"
-                                variant="outlined"
-                                size="medium"
-                            />
-                        )}
+
                     </Box>
 
                     <Typography variant="h4" fontWeight="bold" gutterBottom>
@@ -390,6 +383,14 @@ const EventDetails = () => {
                         >
                             {isEditMode ? 'View Mode' : 'Edit Mode'}
                         </Button>
+                    )}
+
+                    {unsavedChanges && (
+                        <Tooltip title="Unsaved Changes" color="warning" placement="lefti">
+                            <Box>
+                                <Error color="warning" fontSize="large" />
+                            </Box>
+                        </Tooltip>
                     )}
 
                     {isEditMode && (

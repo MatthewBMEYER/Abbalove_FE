@@ -133,6 +133,8 @@ const Calendar = () => {
             study: theme.palette.blue?.[500] || '#2196F3',
             practice: theme.palette.orange?.[500] || '#FF9800',
             other: theme.palette.grey[600],
+
+            //'service','comcell','prayer','training','outreach','social','fellowship','study','practice','other'
         };
         return colors[type] || theme.palette.grey[600];
     };
@@ -431,7 +433,7 @@ const Calendar = () => {
                                     sx={{
                                         width: '100%',
                                         height: 'auto',
-                                        minHeight: 400,
+                                        minHeight: 500,
 
                                         '& .MuiDateCalendar-root': {
                                             width: '100%',
@@ -474,7 +476,7 @@ const Calendar = () => {
                                         },
 
                                         '& .Mui-selected': {
-                                            backgroundColor: `${theme.palette.primary.main} !important`,
+                                            backgroundColor: `${theme.palette.primary.main}90 !important`,
                                             color: 'white !important',
                                         },
 
@@ -496,8 +498,8 @@ const Calendar = () => {
 
                             {/* Event Legend */}
                             <Box sx={{
-                                mt: 3,
-                                p: 2,
+                                mt: 0,
+                                p: 1,
                             }}>
                                 <Typography variant="subtitle2" fontWeight="600" gutterBottom color="text.primary">
                                     Event Types:

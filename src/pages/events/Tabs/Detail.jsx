@@ -75,15 +75,17 @@ const DetailTab = ({ data, onUpdate, isViewMode, isEditMode }) => {
     // Event type options
     const eventTypeOptions = [
         { value: 'service', label: 'Sunday Service' },
-        { value: 'prayer', label: 'Prayer Meeting' },
-        { value: 'training', label: 'Training Session' },
-        { value: 'outreach', label: 'Outreach Event' },
-        { value: 'social', label: 'Social Gathering' },
+        { value: 'comcell', label: 'Community Cell' },
+        { value: 'prayer', label: 'Prayer' },
+        { value: 'training', label: 'Training' },
+        { value: 'outreach', label: 'Outreach' },
+        { value: 'social', label: 'Social' },
         { value: 'fellowship', label: 'Fellowship' },
-        { value: 'conference', label: 'Conference' },
-        { value: 'workshop', label: 'Workshop' },
-        { value: 'retreat', label: 'Retreat' },
-        { value: 'other', label: 'Other Event' }
+        { value: 'study', label: 'Study' },
+        { value: 'practice', label: 'Practice' },
+        { value: 'other', label: 'Other' }
+
+        //'service','comcell','prayer','training','outreach','social','fellowship','study','practice','other'
     ];
 
     const formatTime = (dateString) => {
@@ -120,7 +122,7 @@ const DetailTab = ({ data, onUpdate, isViewMode, isEditMode }) => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {/* Event Name */}
                     <TextField
-                        label="Event Name *"
+                        label="Event Name"
                         value={localData.name || ''}
                         onChange={(e) => handleChange('name', e.target.value)}
                         fullWidth

@@ -19,6 +19,15 @@ const lightTheme = createTheme({
     shadows: [
         'none',
         '0px 4px 20px rgba(0, 0, 0, 0.05)',
+        '0px 4px 20px rgba(0, 0, 0, 0.05)',
+        '0px 4px 20px rgba(0, 0, 0, 0.05)',
+        '0px 4px 20px rgba(0, 0, 0, 0.05)',
+        '0px 4px 20px rgba(0, 0, 0, 0.05)',
+        '0px 4px 20px rgba(0, 0, 0, 0.05)',
+        '0px 4px 20px rgba(0, 0, 0, 0.05)',
+        '0px 4px 20px rgba(0, 0, 0, 0.05)',
+        '0px 4px 20px rgba(0, 0, 0, 0.05)',
+
     ],
     typography: {
         fontFamily: 'Poppins, sans-serif',
@@ -32,6 +41,11 @@ const lightTheme = createTheme({
                     padding: '8px 16px',
                     whiteSpace: 'nowrap',
                 },
+            },
+        },
+        MuiTypography: {
+            defaultProps: {
+                noWrap: true,
             },
         },
         MuiTextField: {

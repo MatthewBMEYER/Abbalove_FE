@@ -209,7 +209,7 @@ const SpeakerTab = ({
 
         const speaker = {
             id: Date.now().toString(),
-            type: 'name',
+            type: 'guest',
             name: newSpeakerName,
             userId: null,
             addedAt: new Date().toISOString()
@@ -237,7 +237,7 @@ const SpeakerTab = ({
 
         const translator = {
             id: Date.now().toString(),
-            type: 'name',
+            type: 'guest',
             name: newTranslatorName,
             userId: null,
             addedAt: new Date().toISOString()
@@ -405,7 +405,8 @@ const SpeakerTab = ({
 
             <Grid container spacing={3} sx={{ gap: 3, width: '100%', minHeight: '400px' }}>
                 {/* Speakers Section */}
-                <Grid item size={{ lg: 4, md: 6, xs: 12 }}>
+                <Grid item size={{ lg: 6, md: 6, xs: 12 }}>
+                    {/* <Grid item size={{ lg: 4, md: 6, xs: 12 }}> */}
                     <Card sx={{
                         height: '100%',
                         backgroundColor: 'background.main',
@@ -499,7 +500,8 @@ const SpeakerTab = ({
                 </Grid>
 
                 {/* Translators Section */}
-                <Grid item size={{ lg: 4, md: 6, xs: 12 }}>
+                <Grid item size={{ lg: 6, md: 6, xs: 12 }}>
+                    {/* <Grid item size={{ lg: 4, md: 6, xs: 12 }}> */}
                     <Card sx={{
                         height: '100%',
                         backgroundColor: 'background.main',
@@ -593,7 +595,7 @@ const SpeakerTab = ({
                 </Grid>
 
                 {/* Presentation Files Section */}
-                <Grid item size={{ lg: 4, md: 12, xs: 12 }}>
+                {/* <Grid item size={{ lg: 4, md: 12, xs: 12 }}>
                     <Card sx={{
                         height: '100%',
                         backgroundColor: 'background.main',
@@ -609,7 +611,6 @@ const SpeakerTab = ({
                                 </Typography>
                             </Box>
 
-                            {/* File Upload - Only in edit mode */}
                             {isEditMode && (
                                 <Box sx={{ mb: 3 }}>
                                     <input
@@ -634,7 +635,6 @@ const SpeakerTab = ({
                                 </Box>
                             )}
 
-                            {/* Files List */}
                             {presentationFiles.length === 0 ? (
                                 <Box sx={{ textAlign: 'center', py: 3, mt: isEditMode ? 6 : 3 }}>
                                     <Slideshow sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
@@ -684,7 +684,7 @@ const SpeakerTab = ({
                             )}
                         </CardContent>
                     </Card>
-                </Grid>
+                </Grid> */}
             </Grid>
 
             {/* User Selection Drawer - Only in edit mode */}

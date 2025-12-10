@@ -16,6 +16,8 @@ import Dashboard from './pages/Dashboard';
 
 //Events
 import EventDetails from './pages/events/EventDetails';
+import AllEvents from './pages/events/AllEvents';
+
 
 // worships
 // import Schedule from './pages/worships/Schedule';
@@ -89,7 +91,7 @@ function App() {
           <Route path="settings/user/profile" element={<Profile />} />
 
           {/* Events */}
-          {/* <Route path="events/all" element={<AllEvents />} /> */}
+          <Route path="events/all" element={<AllEvents />} />
           <Route path="events/create" element={<EventDetails />} />
 
 
