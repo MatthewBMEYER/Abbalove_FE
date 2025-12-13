@@ -35,6 +35,7 @@ import MultimediaTab from "./Tabs/MultiMedia&Tech";
 
 const EventDetails = () => {
     const { eventId } = useParams();
+    console.log(eventId)
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState(0);
     const [mode, setMode] = useState(eventId ? 'view' : 'create'); // 'view', 'edit', 'create'
@@ -107,7 +108,7 @@ const EventDetails = () => {
 
                 if (eventId) {
                     // Fetch existing event with ALL related data
-                    const eventResponse = await api.get(`/events/${eventId}/full`);
+                    const eventResponse = await api.get(`/core/event/get/${eventId}`);
                     if (eventResponse.data.success) {
                         // Merge fetched data with our structure
                         const fetchedData = eventResponse.data.data;
@@ -201,7 +202,7 @@ const EventDetails = () => {
                 if (isCreateMode) {
                     // Switch to edit mode for the new event
                     setTimeout(() => {
-                        navigate(`/events/${response.data.data.id}/edit`);
+                        navigate(`/events/${response.data.data.id}`);
                     }, 1500);
                 } else {
                     // Switch to view mode after saving

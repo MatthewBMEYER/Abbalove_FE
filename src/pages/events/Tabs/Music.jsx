@@ -3,11 +3,9 @@ import {
     Box,
     Typography,
     Button,
-    Paper,
     Alert,
     CircularProgress,
     Card,
-    CardContent,
     IconButton,
     Grid,
     List,
@@ -40,26 +38,30 @@ const MusicTab = ({
     const [error, setError] = useState(null);
     const [positions, setPositions] = useState([]);
     const [teamMembers, setTeamMembers] = useState([]);
+
+    // Group assigned members by role_in_event (position name)
     const [positionAssignments, setPositionAssignments] = useState(() => {
         if (!assignedMembers || assignedMembers.length === 0) return {};
 
         const assignments = {};
         assignedMembers.forEach(member => {
-            if (member.position_id) {
-                if (!assignments[member.position_id]) {
-                    assignments[member.position_id] = [];
+            const positionName = member.role_in_event;  // Use role_in_event as position name
+            if (positionName) {
+                if (!assignments[positionName]) {
+                    assignments[positionName] = [];
                 }
-                assignments[member.position_id].push(member);
+                assignments[positionName].push(member);
             }
         });
         return assignments;
     });
+
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [currentPosition, setCurrentPosition] = useState(null);
     const [tempSelection, setTempSelection] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
 
-    // Use ref to track previous assignments and prevent infinite loops
+    // Use ref to track previous assignments
     const prevAssignmentsRef = useRef({});
     const isInitialMount = useRef(true);
 
@@ -76,7 +78,7 @@ const MusicTab = ({
             setLoading(true);
             setError(null);
             try {
-                // Fetch positions
+                // Fetch positions for UI display
                 const positionsResponse = await api.post('/team/getAllPositions', { teamId: team.id });
                 if (positionsResponse.data.success) {
                     setPositions(positionsResponse.data.data || []);
@@ -114,12 +116,13 @@ const MusicTab = ({
 
         if (hasAssignmentsChanged) {
             const allAssignments = [];
-            Object.entries(positionAssignments).forEach(([positionId, members]) => {
+            Object.entries(positionAssignments).forEach(([positionName, members]) => {
                 members.forEach(member => {
                     allAssignments.push({
-                        ...member,
-                        position_id: positionId,
-                        role_in_event: 'musician'
+                        user_id: member.user_id,
+                        name: member.name,
+                        role_in_event: positionName,  // Save position name as role_in_event
+                        details: member.details || null
                     });
                 });
             });
@@ -132,8 +135,8 @@ const MusicTab = ({
     // Open drawer for position selection
     const openSelectionDrawer = (position) => {
         setCurrentPosition(position);
-        // Set current selection as temporary selection
-        const currentAssigned = positionAssignments[position.id] || [];
+        // Get currently assigned members for this position
+        const currentAssigned = positionAssignments[position.label] || [];
         setTempSelection(currentAssigned.map(member => member.user_id));
         setDrawerOpen(true);
     };
@@ -150,13 +153,18 @@ const MusicTab = ({
     const saveSelection = () => {
         if (!currentPosition) return;
 
-        const selectedMembers = teamMembers.filter(member =>
-            tempSelection.includes(member.user_id)
-        );
+        const selectedMembers = teamMembers
+            .filter(member => tempSelection.includes(member.user_id))
+            .map(member => ({
+                user_id: member.user_id,
+                name: member.name,
+                role_in_event: currentPosition.label,  // Save position label as role_in_event
+                details: null
+            }));
 
         setPositionAssignments(prev => ({
             ...prev,
-            [currentPosition.id]: selectedMembers
+            [currentPosition.label]: selectedMembers  // Group by position label
         }));
         closeDrawer();
     };
@@ -190,22 +198,28 @@ const MusicTab = ({
     };
 
     // Remove member from position
-    const removeMemberFromPosition = useCallback((positionId, userId) => {
-        setPositionAssignments(prev => ({
-            ...prev,
-            [positionId]: (prev[positionId] || []).filter(member => member.user_id !== userId)
-        }));
+    const removeMemberFromPosition = useCallback((positionName, userId) => {
+        setPositionAssignments(prev => {
+            const newAssignments = { ...prev };
+            if (newAssignments[positionName]) {
+                newAssignments[positionName] = newAssignments[positionName]
+                    .filter(member => member.user_id !== userId);
+
+                // Remove empty position groups
+                if (newAssignments[positionName].length === 0) {
+                    delete newAssignments[positionName];
+                }
+            }
+            return newAssignments;
+        });
     }, []);
 
     // Find member assignment status
     const getMemberAssignmentStatus = useCallback((userId) => {
         const assignedPositions = [];
-        Object.entries(positionAssignments).forEach(([positionId, members]) => {
+        Object.entries(positionAssignments).forEach(([positionName, members]) => {
             if (members.some(m => m.user_id === userId)) {
-                const position = positions.find(p => p.id === positionId);
-                if (position) {
-                    assignedPositions.push(position.label);
-                }
+                assignedPositions.push(positionName);
             }
         });
 
@@ -213,7 +227,15 @@ const MusicTab = ({
             return assignedPositions.join(', ');
         }
         return null;
-    }, [positionAssignments, positions]);
+    }, [positionAssignments]);
+
+    // Group positions with their assigned members
+    const getPositionWithMembers = () => {
+        return positions.map(position => {
+            const members = positionAssignments[position.label] || [];
+            return { position, members };
+        });
+    };
 
     if (loading) {
         return (
@@ -247,136 +269,170 @@ const MusicTab = ({
             )}
 
             {/* View mode info */}
-            {isViewMode && positions.length === 0 && (
+            {isViewMode && assignedMembers.length === 0 && (
                 <Alert severity="info" sx={{ mb: 2 }}>
                     No musicians assigned for this event.
                 </Alert>
             )}
 
-            {/* Positions Grid - Stable Layout */}
+            {/* Positions Grid */}
             <Grid container spacing={2}>
-                {positions.map((position) => {
-                    const assignedMembers = positionAssignments[position.id] || [];
-
-                    return (
-                        <Grid item size={{ md: 12, lg: 12, xs: 12 }} key={position.id}>
-                            <Card
-                                variant="outlined"
-                                sx={{
-                                    p: 2,
-                                    minHeight: assignedMembers.length > 0 ? 'auto' : 80,
+                {getPositionWithMembers().map(({ position, members }) => (
+                    <Grid item size={{ md: 12, lg: 12, xs: 12 }} key={position.id}>
+                        <Card
+                            variant="outlined"
+                            sx={{
+                                p: 2,
+                                minHeight: members.length > 0 ? 'auto' : 80,
+                                display: 'flex',
+                                alignItems: 'stretch',
+                                backgroundColor: 'background.paper',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 1,
+                                opacity: isViewMode ? 0.9 : 1
+                            }}
+                        >
+                            <Box sx={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: 2,
+                                width: '100%',
+                                minHeight: '100%'
+                            }}>
+                                {/* Position Label */}
+                                <Box sx={{
+                                    minWidth: 120,
                                     display: 'flex',
-                                    alignItems: 'stretch',
-                                    backgroundColor: 'background.paper',
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    borderRadius: 1,
-                                    opacity: isViewMode ? 0.9 : 1
-                                }}
-                            >
+                                    alignItems: 'center',
+                                    height: '100%'
+                                }}>
+                                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                        {position.label}
+                                    </Typography>
+                                </Box>
+
+                                <Divider orientation="vertical" flexItem />
+
+                                {/* Assigned Users */}
+                                <Box sx={{
+                                    flex: 1,
+                                    minHeight: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center'
+                                }}>
+                                    {members.length === 0 ? (
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{
+                                                fontStyle: 'italic',
+                                                height: '100%',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                        >
+                                            {isViewMode ? 'No one assigned' : 'No one assigned yet'}
+                                        </Typography>
+                                    ) : (
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                            {members.map((member) => (
+                                                <Box
+                                                    key={member.user_id}
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        p: 1.5,
+                                                        backgroundColor: 'background.default',
+                                                        borderRadius: 1,
+                                                        border: '1px solid',
+                                                        borderColor: 'divider'
+                                                    }}
+                                                >
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                        <Person fontSize="small" color="action" />
+                                                        <Typography variant="body2" fontWeight="medium">
+                                                            {member.name}
+                                                        </Typography>
+                                                    </Box>
+                                                    {isEditMode && (
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => removeMemberFromPosition(position.label, member.user_id)}
+                                                            color="error"
+                                                        >
+                                                            <Close fontSize="small" />
+                                                        </IconButton>
+                                                    )}
+                                                </Box>
+                                            ))}
+                                        </Box>
+                                    )}
+                                </Box>
+
+                                {/* Add Button */}
                                 <Box sx={{
                                     display: 'flex',
-                                    alignItems: 'flex-start',
-                                    gap: 2,
-                                    width: '100%',
-                                    minHeight: '100%'
+                                    alignItems: 'center',
+                                    height: '100%'
                                 }}>
-                                    {/* Instrument Label - Fixed Width */}
-                                    <Box sx={{
-                                        minWidth: 120,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        height: '100%'
-                                    }}>
-                                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                            {position.label}
-                                        </Typography>
-                                    </Box>
-
-                                    <Divider orientation="vertical" flexItem />
-
-                                    {/* Assigned Users - Flexible Width */}
-                                    <Box sx={{
-                                        flex: 1,
-                                        minHeight: '100%',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        justifyContent: 'center'
-                                    }}>
-                                        {assignedMembers.length === 0 ? (
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                                sx={{
-                                                    fontStyle: 'italic',
-                                                    height: '100%',
-                                                    display: 'flex',
-                                                    alignItems: 'center'
-                                                }}
-                                            >
-                                                {isViewMode ? 'No one assigned' : 'No one assigned yet'}
-                                            </Typography>
-                                        ) : (
-                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                                {assignedMembers.map((member) => (
-                                                    <Box
-                                                        key={member.user_id}
-                                                        sx={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'space-between',
-                                                            p: 1.5,
-                                                            backgroundColor: 'background.default',
-                                                            borderRadius: 1,
-                                                            border: '1px solid',
-                                                            borderColor: 'divider'
-                                                        }}
-                                                    >
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                                            <Person fontSize="small" color="action" />
-                                                            <Typography variant="body2" fontWeight="medium">
-                                                                {member.name}
-                                                            </Typography>
-                                                        </Box>
-                                                        {isEditMode && (
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() => removeMemberFromPosition(position.id, member.user_id)}
-                                                                color="error"
-                                                            >
-                                                                <Close fontSize="small" />
-                                                            </IconButton>
-                                                        )}
-                                                    </Box>
-                                                ))}
-                                            </Box>
-                                        )}
-                                    </Box>
-
-                                    {/* Add Button - Fixed Position */}
-                                    <Box sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        height: '100%'
-                                    }}>
-                                        {isEditMode && (
-                                            <Button
-                                                variant="contained"
-                                                startIcon={<Add />}
-                                                onClick={() => openSelectionDrawer(position)}
-                                                size="small"
-                                                sx={{ minWidth: 'auto' }}
-                                            >
-                                                Add
-                                            </Button>
-                                        )}
-                                    </Box>
+                                    {isEditMode && (
+                                        <Button
+                                            variant="contained"
+                                            startIcon={<Add />}
+                                            onClick={() => openSelectionDrawer(position)}
+                                            size="small"
+                                            sx={{ minWidth: 'auto' }}
+                                        >
+                                            Add
+                                        </Button>
+                                    )}
                                 </Box>
-                            </Card>
-                        </Grid>
-                    );
-                })}
+                            </Box>
+                        </Card>
+                    </Grid>
+                ))}
             </Grid>
+
+            {/* Display unassigned members (if any) */}
+            {Object.entries(positionAssignments).some(([positionName, members]) => {
+                // Check if this positionName doesn't exist in positions array
+                return !positions.some(p => p.label === positionName) && members.length > 0;
+            }) && (
+                    <Box sx={{ mt: 4 }}>
+                        <Typography variant="h6" color="text.secondary" gutterBottom>
+                            Unrecognized Positions
+                        </Typography>
+                        {Object.entries(positionAssignments)
+                            .filter(([positionName, members]) =>
+                                !positions.some(p => p.label === positionName) && members.length > 0
+                            )
+                            .map(([positionName, members]) => (
+                                <Card key={positionName} sx={{ mb: 2, p: 2 }}>
+                                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                        {positionName}
+                                    </Typography>
+                                    {members.map(member => (
+                                        <Box key={member.user_id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                            <Person fontSize="small" />
+                                            <Typography variant="body2">{member.name}</Typography>
+                                            {isEditMode && (
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => removeMemberFromPosition(positionName, member.user_id)}
+                                                    color="error"
+                                                >
+                                                    <Close fontSize="small" />
+                                                </IconButton>
+                                            )}
+                                        </Box>
+                                    ))}
+                                </Card>
+                            ))}
+                    </Box>
+                )}
 
             {/* Empty State */}
             {positions.length === 0 && !loading && (
@@ -468,17 +524,12 @@ const MusicTab = ({
                                                         </Typography>
                                                         {assignmentStatus && (
                                                             <Chip
-                                                                label={`Assigned to: ${assignmentStatus}`}
+                                                                label={`Already assigned to: ${assignmentStatus}`}
                                                                 size="small"
                                                                 variant="outlined"
-                                                                color="info"
+                                                                color="warning"
                                                                 sx={{ mt: 0.5 }}
                                                             />
-                                                        )}
-                                                        {member.email && (
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {member.email}
-                                                            </Typography>
                                                         )}
                                                     </Box>
                                                 }

@@ -93,6 +93,8 @@ function App() {
           {/* Events */}
           <Route path="events/all" element={<AllEvents />} />
           <Route path="events/create" element={<EventDetails />} />
+          <Route path="events/:eventId" element={<EventDetails />} />
+
 
 
           {/* Worships */}
