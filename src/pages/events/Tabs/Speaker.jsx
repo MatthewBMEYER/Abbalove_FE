@@ -65,11 +65,6 @@ const SpeakerTab = ({
     // Ref to track previous data
     const prevSpeakerDataRef = useRef({ speakers, translators, presentationFiles });
 
-    // Fetch all users
-    useEffect(() => {
-        fetchAllUsers();
-    }, []);
-
     const fetchAllUsers = async () => {
         setUsersLoading(true);
         try {
@@ -107,9 +102,9 @@ const SpeakerTab = ({
     // Open drawer for user selection
     const openUserSelectionDrawer = useCallback((type) => {
         if (!isEditMode) return;
+        fetchAllUsers();
 
         setSelectionType(type);
-        // Set current selection as temporary selection
         if (type === 'speaker') {
             setTempSelection(speakers.filter(s => s.type === 'user').map(s => s.userId));
         } else {
@@ -118,7 +113,6 @@ const SpeakerTab = ({
         setDrawerOpen(true);
     }, [speakers, translators, isEditMode]);
 
-    // Close drawer without saving
     const closeDrawer = () => {
         setDrawerOpen(false);
         setSelectionType(null);
@@ -141,12 +135,8 @@ const SpeakerTab = ({
         }));
 
         if (selectionType === 'speaker') {
-            // Keep existing Guest speakers AND add new user selections
-            // Filter out any existing user-type speakers to avoid duplicates
             const existingGuestSpeakers = speakers.filter(s => s.type === 'name');
             const existingUserSpeakers = speakers.filter(s => s.type === 'user');
-
-            // Combine: keep Guest, replace user selections with new ones
             const updatedSpeakers = [...existingGuestSpeakers, ...newEntries];
 
             onUpdate({
@@ -155,7 +145,6 @@ const SpeakerTab = ({
                 presentationFiles
             });
         } else {
-            // Same logic for translators
             const existingGuestTranslators = translators.filter(t => t.type === 'name');
             const existingUserTranslators = translators.filter(t => t.type === 'user');
 

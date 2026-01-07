@@ -27,6 +27,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { PickersDay } from '@mui/x-date-pickers/PickersDay';
 import api from '../api'; // Adjust the import path as needed
+import { useNavigate } from 'react-router-dom';
+
 
 const Calendar = () => {
     const theme = useTheme();
@@ -37,6 +39,8 @@ const Calendar = () => {
     const [monthYearAnchor, setMonthYearAnchor] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
+
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -266,17 +270,23 @@ const Calendar = () => {
             <Box sx={{
                 p: { xs: 2, md: 3 },
                 width: '100%',
-                height: '100%'
+                // 1. Give the container a defined height relative to the viewport
+                height: { lg: 'calc(100vh - 113px)', xs: 'auto' },
+                overflow: 'hidden'
             }}>
-                <Grid container spacing={3} sx={{ height: '100%', maxWidth: 1600, margin: '0 auto' }}>
-                    {/* Calendar Side - Left */}
-                    <Grid size={{ xs: 12, lg: 6 }}>
+                <Grid container spacing={3} sx={{
+                    height: '100%',
+                    maxWidth: 1600,
+                    margin: '0 auto',
+                    // Prevent the whole grid from scrolling on large screens
+                    overflow: { lg: 'hidden', xs: 'visible' }
+                }}>
+                    <Grid size={{ xs: 12, lg: 6 }} sx={{ height: '100%' }}>
                         <Box
                             sx={{
                                 p: { xs: 2, md: 3, lg: 4 },
                                 borderRadius: 3,
-                                height: '100%',
-                                minHeight: '700px',
+                                height: '100%', // Fills the grid height
                                 backgroundColor: 'background.default',
                                 border: `1px solid ${theme.palette.divider}`,
                                 boxShadow: 1,
@@ -284,24 +294,15 @@ const Calendar = () => {
                                 flexDirection: 'column'
                             }}
                         >
-                            {/* Custom Calendar Header */}
-                            <Box sx={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                mb: 2,
-                                flexWrap: 'wrap',
-                                gap: 1
-                            }}>
+                            {/* Header Section */}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                                 <Button
                                     variant="outlined"
                                     onClick={handleMonthYearClick}
                                     sx={{
                                         minWidth: 180,
-                                        justifyContent: 'space-between',
                                         fontWeight: '600',
-                                        fontSize: { xs: '1rem', md: '1.1rem', lg: '1.2rem' },
-                                        borderColor: 'divider',
+                                        fontSize: { xs: '1rem', md: '1.1rem' },
                                         color: 'text.primary'
                                     }}
                                 >
@@ -310,110 +311,32 @@ const Calendar = () => {
                                 </Button>
 
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <IconButton
-                                        onClick={() => navigateMonth(-1)}
-                                        size="small"
-                                        disabled={loading}
-                                    >
+                                    <IconButton onClick={() => navigateMonth(-1)} disabled={loading} size="small">
                                         <ChevronLeft />
                                     </IconButton>
-                                    <IconButton
-                                        onClick={() => navigateMonth(1)}
-                                        size="small"
-                                        disabled={loading}
-                                    >
+                                    <IconButton onClick={() => navigateMonth(1)} disabled={loading} size="small">
                                         <ChevronRight />
                                     </IconButton>
                                     <Button
                                         startIcon={<Today />}
                                         onClick={goToToday}
                                         variant="contained"
-                                        size="medium"
-                                        sx={{ ml: 1, fontWeight: '500' }}
                                         disabled={loading}
+                                        sx={{ ml: 1 }}
                                     >
                                         Today
                                     </Button>
                                 </Box>
                             </Box>
 
-                            {/* Error Alert */}
-                            {error && (
-                                <Alert severity="error" sx={{ mb: 2 }}>
-                                    {error}
-                                </Alert>
-                            )}
-
-                            {/* Month/Year Popover */}
-                            <Popover
-                                open={open}
-                                anchorEl={monthYearAnchor}
-                                onClose={handleMonthYearClose}
-                                anchorOrigin={{
-                                    vertical: 'bottom',
-                                    horizontal: 'left',
-                                }}
-                                transformOrigin={{
-                                    vertical: 'top',
-                                    horizontal: 'left',
-                                }}
-                                elevation={1}
-                                sx={{ mt: 3 }}
-                            >
-                                <Box sx={{ p: 2, minWidth: 300, backgroundColor: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                                    {/* Year Navigation */}
-                                    <Box sx={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        mb: 2
-                                    }}>
-                                        <IconButton
-                                            onClick={() => navigateYear(-1)}
-                                            size="small"
-                                        >
-                                            <ChevronLeft />
-                                        </IconButton>
-                                        <Typography variant="h6" fontWeight="600">
-                                            {currentYear}
-                                        </Typography>
-                                        <IconButton
-                                            onClick={() => navigateYear(1)}
-                                            size="small"
-                                        >
-                                            <ChevronRight />
-                                        </IconButton>
-                                    </Box>
-
-                                    {/* Month Grid */}
-                                    <Grid container spacing={1}>
-                                        {months.map((month, index) => (
-                                            <Grid size={4} key={month}>
-                                                <Button
-                                                    fullWidth
-                                                    variant={currentMonth === index ? "contained" : "outlined"}
-                                                    onClick={() => selectMonth(index)}
-                                                    size="small"
-                                                    sx={{
-                                                        fontWeight: currentMonth === index ? '600' : '400'
-                                                    }}
-                                                >
-                                                    {month.substring(0, 3)}
-                                                </Button>
-                                            </Grid>
-                                        ))}
-                                    </Grid>
-                                </Box>
-                            </Popover>
-
-                            {/* Calendar - Takes remaining space */}
+                            {/* Calendar Area */}
                             <Box sx={{
                                 flex: 1,
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                padding: 2,
                                 width: '100%',
+                                overflow: 'hidden' // Keeps the calendar itself from causing scroll
                             }}>
                                 <DateCalendar
                                     value={selectedDate}
@@ -497,27 +420,15 @@ const Calendar = () => {
                             </Box>
 
                             {/* Event Legend */}
-                            <Box sx={{
-                                mt: 0,
-                                p: 1,
-                            }}>
-                                <Typography variant="subtitle2" fontWeight="600" gutterBottom color="text.primary">
+                            <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+                                <Typography variant="subtitle2" fontWeight="600" gutterBottom>
                                     Event Types:
                                 </Typography>
                                 <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-                                    {['service', 'comcell', 'prayer', 'training', 'outreach', 'social', 'fellowship', 'study', 'practice'].map(type => (
+                                    {['service', 'comcell', 'prayer', 'training', 'outreach'].map(type => (
                                         <Box key={type} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Box
-                                                sx={{
-                                                    width: 8,
-                                                    height: 8,
-                                                    borderRadius: '50%',
-                                                    backgroundColor: getEventTypeColor(type),
-                                                }}
-                                            />
-                                            <Typography variant="caption" color="text.secondary">
-                                                {getEventTypeLabel(type)}
-                                            </Typography>
+                                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: getEventTypeColor(type) }} />
+                                            <Typography variant="caption">{getEventTypeLabel(type)}</Typography>
                                         </Box>
                                     ))}
                                 </Stack>
@@ -525,104 +436,70 @@ const Calendar = () => {
                         </Box>
                     </Grid>
 
-                    {/* Events Side - Right */}
-                    <Grid size={{ xs: 12, lg: 6 }}>
-                        <Box
-                            sx={{
-                                borderRadius: 3,
-                                height: '100%',
-                                position: { lg: 'sticky' },
-                                top: { lg: 20 },
-                                display: 'flex',
-                                flexDirection: 'column'
-                            }}
-                        >
-                            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-                                {selectedDate.toLocaleDateString('en-US', {
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                    month: 'long',
-                                })}
-                                {loading && <CircularProgress size={16} />}
-                            </Typography>
+                    {/* Events Side - Right (Scrollable) */}
+                    <Grid size={{ xs: 12, lg: 6 }} sx={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}>
+                        <Typography variant="h6" sx={{ mb: 2, px: 1 }}>
+                            {selectedDate.toLocaleDateString('en-US', { day: 'numeric', year: 'numeric', month: 'long' })}
+                        </Typography>
 
-                            <Box sx={{ flex: 1, overflow: 'auto' }}>
-                                {loading ? (
-                                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                                        <CircularProgress />
-                                    </Box>
-                                ) : getEventsOnDate(selectedDate).length > 0 ? (
-                                    <List dense sx={{ '& .MuiListItem-root': { px: 2 } }}>
-                                        {getEventsOnDate(selectedDate).map(event => (
-                                            <ListItem
-                                                key={event.id}
-                                                divider
-                                                sx={{
-                                                    borderRadius: 2,
-                                                    mb: 2,
-                                                    py: 2,
-                                                    backgroundColor: alpha(getEventTypeColor(event.type), 0.08),
-                                                    border: `1px solid ${alpha(getEventTypeColor(event.type), 0.2)}`,
-                                                    '&:last-child': { mb: 0 }
-                                                }}
-                                            >
-                                                <ListItemText
-                                                    primary={
-                                                        <Typography variant="subtitle1" fontWeight="600">
-                                                            {event.title}
+                        {/* 2. This Box becomes the scrollable container */}
+                        <Box sx={{
+                            flex: 1,
+                            overflowY: 'auto', // Enable vertical scroll
+                            pr: 1, // Padding for the scrollbar
+                            '&::-webkit-scrollbar': { width: '6px' },
+                            '&::-webkit-scrollbar-thumb': {
+                                backgroundColor: alpha(theme.palette.text.primary, 0.1),
+                                borderRadius: '10px',
+                            }
+                        }}>
+                            {loading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+                            ) : getEventsOnDate(selectedDate).length > 0 ? (
+                                <List dense disablePadding>
+                                    {getEventsOnDate(selectedDate).map(event => (
+                                        <ListItem
+                                            key={event.id}
+                                            onClick={() => navigate(`/events/${event.id}`)}
+                                            sx={{
+                                                cursor: 'pointer',
+                                                borderRadius: 2,
+                                                mb: 2,
+                                                py: 2,
+                                                backgroundColor: alpha(getEventTypeColor(event.type), 0.08),
+                                                border: `1px solid ${alpha(getEventTypeColor(event.type), 0.2)}`,
+                                                '&:hover': { backgroundColor: alpha(getEventTypeColor(event.type), 0.12) }
+                                            }}
+                                        >
+                                            <ListItemText
+                                                primary={<Typography variant="subtitle1" fontWeight="600">{event.title}</Typography>}
+                                                secondary={
+                                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            {event.time} {event.location && `• ${event.location}`}
                                                         </Typography>
-                                                    }
-                                                    secondary={
-                                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
-                                                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                                                <Typography variant="body2" color="text.secondary">
-                                                                    {event.time}
-                                                                </Typography>
-                                                                {event.location && event.location !== "TBD" && (
-                                                                    <>
-                                                                        <Typography variant="body2" color="text.secondary">•</Typography>
-                                                                        <Typography variant="body2" color="text.secondary">
-                                                                            {event.location}
-                                                                        </Typography>
-                                                                    </>
-                                                                )}
-                                                            </Box>
-                                                            <Chip
-                                                                label={getEventTypeLabel(event.type)}
-                                                                size="small"
-                                                                sx={{
-                                                                    backgroundColor: getEventTypeColor(event.type),
-                                                                    color: 'white',
-                                                                    fontWeight: 'bold',
-                                                                    fontSize: '0.75rem',
-                                                                    height: 24,
-                                                                    alignSelf: 'flex-start'
-                                                                }}
-                                                            />
-                                                        </Box>
-                                                    }
-                                                />
-                                            </ListItem>
-                                        ))}
-                                    </List>
-                                ) : (
-                                    <Box sx={{
-                                        py: 8,
-                                        textAlign: 'center',
-                                        backgroundColor: 'background.paper',
-                                        borderRadius: 2,
-                                        border: `1px dashed`,
-                                        borderColor: 'divider',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
-                                        <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                            No events scheduled for this day.
-                                        </Typography>
-                                    </Box>
-                                )}
-                            </Box>
+                                                        <Chip label={getEventTypeLabel(event.type)} size="small"
+                                                            sx={{ backgroundColor: getEventTypeColor(event.type), color: 'white', width: 'fit-content' }}
+                                                        />
+                                                    </Box>
+                                                }
+                                            />
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            ) : (
+                                <Box sx={{
+                                    py: 8, textAlign: 'center', border: `1px dashed ${theme.palette.divider}`, borderRadius: 2
+                                }}>
+                                    <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                        No events scheduled for this day.
+                                    </Typography>
+                                </Box>
+                            )}
                         </Box>
                     </Grid>
                 </Grid>

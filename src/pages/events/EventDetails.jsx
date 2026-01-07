@@ -22,7 +22,7 @@ import {
     ArrowBack,
     Error,
     Visibility,
-    Edit as EditIcon
+    Edit as EditIcon,
 } from "@mui/icons-material";
 import api from "../../api";
 import DetailTab from "./tabs/Detail";
@@ -192,22 +192,18 @@ const EventDetails = () => {
             if (isCreateMode) {
                 response = await api.post('/core/event/create', saveData);
             } else {
-                response = await api.put(`core/event/${eventId}`, saveData);
+                response = await api.put(`core/event/update/${eventId}`, saveData);
             }
 
             if (response.data.success) {
                 showSnackbar(isCreateMode ? 'Event created successfully!' : 'Event updated successfully!');
                 setUnsavedChanges(false);
 
-                if (isCreateMode) {
-                    // Switch to edit mode for the new event
-                    setTimeout(() => {
-                        navigate(`/events/${response.data.data.id}`);
-                    }, 1500);
-                } else {
-                    // Switch to view mode after saving
-                    setMode('view');
-                }
+                //setMode('view');
+                setTimeout(() => {
+                    navigate(`/events/all?mode=draft`);
+                }, 1500);
+
             } else {
                 throw new Error(response.data.message || 'Failed to save event');
             }
@@ -387,7 +383,7 @@ const EventDetails = () => {
                     )}
 
                     {unsavedChanges && (
-                        <Tooltip title="Unsaved Changes" color="warning" placement="lefti">
+                        <Tooltip title="Unsaved Changes" color="warning" placement="left">
                             <Box>
                                 <Error color="warning" fontSize="large" />
                             </Box>

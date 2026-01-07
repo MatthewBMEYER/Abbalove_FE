@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
     Box,
     Typography,
@@ -37,15 +37,16 @@ const UsherTab = ({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [teamMembers, setTeamMembers] = useState([]);
-    const [ushers, setUshers] = useState(() => {
+
+    // Initialize ushers from assignedMembers
+    const initialUshers = useMemo(() => {
         if (!assignedMembers || assignedMembers.length === 0) return [];
         return assignedMembers.filter(member =>
             member.role_in_event === 'usher'
         );
-    });
-    const [drawerOpen, setDrawerOpen] = useState(false);
-    const [tempSelection, setTempSelection] = useState([]);
-    const [usherDetails, setUsherDetails] = useState(() => {
+    }, [assignedMembers]);
+
+    const initialUsherDetails = useMemo(() => {
         const details = {};
         if (assignedMembers && assignedMembers.length > 0) {
             assignedMembers.forEach(usher => {
@@ -55,41 +56,51 @@ const UsherTab = ({
             });
         }
         return details;
-    });
+    }, [assignedMembers]);
 
-    // Use ref to track previous values
-    const prevUshersRef = useRef([]);
+    const [ushers, setUshers] = useState(initialUshers);
+    const [usherDetails, setUsherDetails] = useState(initialUsherDetails);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [tempSelection, setTempSelection] = useState([]);
+
+    // Track previous ushers to detect changes
+    const prevUshersRef = useRef(initialUshers);
+    const prevUsherDetailsRef = useRef(initialUsherDetails);
     const isInitialMount = useRef(true);
 
-    // Initialize refs on mount
+    // Reset state when mode changes or assignedMembers changes
     useEffect(() => {
-        prevUshersRef.current = ushers;
-    }, []);
+        setUshers(initialUshers);
+        setUsherDetails(initialUsherDetails);
+        prevUshersRef.current = initialUshers;
+        prevUsherDetailsRef.current = initialUsherDetails;
+    }, [initialUshers, initialUsherDetails, isEditMode, isViewMode]);
 
     // Fetch team members when component mounts
-    useEffect(() => {
-        const fetchTeamMembers = async () => {
-            if (!team?.id) return;
+    const fetchTeamMembers = async () => {
+        if (!team?.id) return;
 
-            setLoading(true);
-            setError(null);
-            try {
-                const response = await api.post('/team/getMembers', { teamId: team.id });
-                if (response.data.success) {
-                    setTeamMembers(response.data.data);
-                } else {
-                    throw new Error('Failed to fetch team members');
-                }
-            } catch (err) {
-                console.error('Error fetching team members:', err);
-                setError(err.response?.data?.message || err.message || 'Failed to load team members');
-            } finally {
-                setLoading(false);
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await api.post('/team/getMembers', { teamId: team.id });
+            if (response.data.success) {
+                setTeamMembers(response.data.data);
+            } else {
+                throw new Error('Failed to fetch team members');
             }
-        };
+        } catch (err) {
+            console.error('Error fetching team members:', err);
+            setError(err.response?.data?.message || err.message || 'Failed to load team members');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        fetchTeamMembers();
-    }, [team?.id]);
+    // Memoize the onUpdate callback to prevent unnecessary re-renders
+    const handleUpdate = useCallback((updatedUshers) => {
+        onUpdate(updatedUshers);
+    }, [onUpdate]);
 
     // Update parent only when there are actual changes
     useEffect(() => {
@@ -98,17 +109,27 @@ const UsherTab = ({
             return;
         }
 
+        // Compare current ushers with previous ushers
         const currentUsherIds = ushers.map(u => u.user_id).sort();
         const prevUsherIds = prevUshersRef.current.map(u => u.user_id).sort();
 
+        // Check if ushers changed
         const hasUshersChanged = JSON.stringify(currentUsherIds) !== JSON.stringify(prevUsherIds);
 
-        // Check if details changed for existing ushers
-        const hasDetailsChanged = ushers.some((usher, index) => {
-            const prevUsher = prevUshersRef.current[index];
-            return prevUsher && usherDetails[usher.user_id] !== prevUsher.details;
-        });
+        // Check if details changed for any usher
+        let hasDetailsChanged = false;
+        if (!hasUshersChanged) {
+            for (const usher of ushers) {
+                const currentDetail = usherDetails[usher.user_id] || '';
+                const prevDetail = prevUsherDetailsRef.current[usher.user_id] || '';
+                if (currentDetail !== prevDetail) {
+                    hasDetailsChanged = true;
+                    break;
+                }
+            }
+        }
 
+        // Only update parent if there are changes
         if (hasUshersChanged || hasDetailsChanged) {
             const allAssignments = ushers.map(usher => ({
                 ...usher,
@@ -116,13 +137,17 @@ const UsherTab = ({
                 details: usherDetails[usher.user_id] || ''
             }));
 
-            onUpdate(allAssignments);
-            prevUshersRef.current = [...ushers];
+            // Update refs before calling parent update
+            prevUshersRef.current = ushers;
+            prevUsherDetailsRef.current = { ...usherDetails };
+
+            handleUpdate(allAssignments);
         }
-    }, [ushers, usherDetails, onUpdate]);
+    }, [ushers, usherDetails, handleUpdate]);
 
     // Open drawer for selection
     const openSelectionDrawer = useCallback(() => {
+        fetchTeamMembers();
         if (!isEditMode) return;
 
         setTempSelection(ushers.map(usher => usher.user_id));

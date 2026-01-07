@@ -64,29 +64,25 @@ const SingerTab = ({
     }, []);
 
     // Fetch team members when component mounts
-    useEffect(() => {
-        const fetchTeamMembers = async () => {
-            if (!team?.id) return;
+    const fetchTeamMembers = async () => {
+        if (!team?.id) return;
 
-            setLoading(true);
-            setError(null);
-            try {
-                const response = await api.post('/team/getMembers', { teamId: team.id });
-                if (response.data.success) {
-                    setTeamMembers(response.data.data);
-                } else {
-                    throw new Error('Failed to fetch team members');
-                }
-            } catch (err) {
-                console.error('Error fetching team members:', err);
-                setError(err.response?.data?.message || err.message || 'Failed to load team members');
-            } finally {
-                setLoading(false);
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await api.post('/team/getMembers', { teamId: team.id });
+            if (response.data.success) {
+                setTeamMembers(response.data.data);
+            } else {
+                throw new Error('Failed to fetch team members');
             }
-        };
-
-        fetchTeamMembers();
-    }, [team?.id]);
+        } catch (err) {
+            console.error('Error fetching team members:', err);
+            setError(err.response?.data?.message || err.message || 'Failed to load team members');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Update parent only when there are actual changes
     useEffect(() => {
@@ -128,6 +124,7 @@ const SingerTab = ({
 
     // Open drawer for selection
     const openSelectionDrawer = (type) => {
+        fetchTeamMembers();
         setSelectionType(type);
         if (type === 'worship_leader') {
             setTempSelection(worshipLeaders.map(wl => wl.user_id));

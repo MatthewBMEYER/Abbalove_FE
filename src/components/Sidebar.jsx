@@ -16,6 +16,7 @@ import {
     ExpandMore,
     Home,
     People,
+    VolunteerActivism,
     Close,
     Call,
     CalendarToday,
@@ -43,7 +44,11 @@ const menuConfig = {
         icon: <Dashboard />,
         path: '/dashboard',
     },
-
+    calendar: {
+        label: 'Calendar',
+        icon: <Event />,
+        path: 'calendar',
+    },
     video: {
         label: 'Video',
         icon: <Subscriptions />,
@@ -62,10 +67,6 @@ const menuConfig = {
                 label: 'Manage',
                 path: "/worship/manage",
                 roles: ['admin', 'master', 'servant'],
-            },
-            giving: {
-                label: 'Giving',
-                path: "/worship/giving",
             }
         }
     },
@@ -80,15 +81,24 @@ const menuConfig = {
             create: {
                 label: 'Create Event',
                 path: "/events/create",
-                roles: ['admin', 'master', 'servant'],
+                roles: ['admin', 'master'],
             }
 
         }
     },
-    calendar: {
-        label: 'Calendar',
-        icon: <Event />,
-        path: 'calendar',
+    comsell: {
+        label: 'Cell Community',
+        icon: <Groups />,
+        children: {
+            my_comsell: {
+                label: 'My Comcell',
+                path: "/comcell/mycomcell"
+            },
+            all_comsell: {
+                label: 'All Comcell',
+                path: "/comcell/all"
+            }
+        }
     },
     teams: {
         label: 'Teams',
@@ -111,20 +121,12 @@ const menuConfig = {
         path: '/users/management',
         roles: ['admin', 'master', 'servant'],
     },
-    comsell: {
-        label: 'Cell Community',
-        icon: <Groups />,
-        children: {
-            my_comsell: {
-                label: 'My Comcell',
-                path: "/comcell/mycomcell"
-            },
-            all_comsell: {
-                label: 'All Comcell',
-                path: "/comcell/all"
-            }
-        }
+    givings: {
+        label: 'Givings',
+        icon: <VolunteerActivism />,
+        path: '/giving',
     },
+
 
 }
 

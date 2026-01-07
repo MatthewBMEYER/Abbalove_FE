@@ -483,10 +483,10 @@ export default function MemberDetail() {
                                 Member ID: {memberData.id}
                             </Typography>
                         </Stack>
-                        <Button
+                        {canEdit() && (<Button
                             variant="contained"
                             onClick={() => setRemoveDialogOpen(true)}
-                        >Remove</Button>
+                        >Remove</Button>)}
                     </Box>
                 </Box>
             </Box>

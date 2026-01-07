@@ -12,7 +12,7 @@ import SetPassword from './pages/auth/SetPassword';
 //---Main Layouts and Pages---
 import MainLayout from './layouts/MainLayout';
 //---
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/dashboard/Dashboard';
 
 //Events
 import EventDetails from './pages/events/EventDetails';
@@ -100,7 +100,6 @@ function App() {
           {/* Worships */}
           {/* <Route path="worship/schedule" element={<Schedule />} />
           <Route path="worship/collections" element={<Collections />} /> */}
-          <Route path="worship/giving" element={<Giving />} />
           <Route path="calendar" element={<Calendar />} />
 
 
@@ -124,6 +123,10 @@ function App() {
           <Route path="comcell/detail/:groupId" element={<ComcellGroupDetail />} />
           <Route path="comcell/mycomcell" element={<MyComsell />} />
           <Route path="/comcell/:groupId/events/create" element={<CreateComcellEvent />} />
+
+
+          {/* Giving */}
+          <Route path="giving" element={<Giving />} />
 
 
 

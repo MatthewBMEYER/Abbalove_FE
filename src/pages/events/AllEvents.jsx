@@ -5,61 +5,62 @@ import {
     Button,
     TextField,
     List,
-    ListItem,
-    ListItemText,
     IconButton,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
     Alert,
+    Snackbar,
     CircularProgress,
-    Skeleton,
-    Grid,
     Paper,
-    Divider,
-    Menu,
-    MenuItem,
-    ListItemIcon,
-    Tooltip,
     FormControl,
     InputLabel,
     Select,
+    MenuItem,
     InputAdornment,
     Badge,
-    Chip
+    Tooltip,
+    ToggleButtonGroup,
+    ToggleButton,
+    Divider
 } from "@mui/material";
 import {
-    Edit,
-    Delete,
-    MoreVert,
-    LocationOn,
-    Schedule,
     Search,
     FilterList,
     Clear,
-    Event,
-    CalendarToday,
-    Archive,
-    Visibility
+    Upcoming as UpcomingIcon,
+    Drafts as DraftIcon,
+    History as PastIcon,
+    ChevronLeft,
+    ChevronRight
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
 import { useUserStore } from "../../store/userStore";
+import RowLayout from "../../components/RowLayout";
+import { useSearchParams } from "react-router-dom";
 
 const AllEvents = () => {
     const navigate = useNavigate();
     const { user } = useUserStore();
     const isAdmin = user.roleName === 'master' || user.roleName === 'admin';
+    const [filterYear, setFilterYear] = useState(new Date().getFullYear());
 
     // State management
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [successMessage, setSuccessMessage] = useState("");
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: "",
+        severity: "success",
+    });
 
     // View mode states
-    const [viewMode, setViewMode] = useState("upcoming"); // "upcoming" or "archive"
+    const [searchParams, setSearchParams] = useSearchParams();
+    const modeFromUrl = searchParams.get('mode') || "upcoming"
+    const [viewMode, setViewMode] = useState(modeFromUrl);
+
     const [openFilterDialog, setOpenFilterDialog] = useState(false);
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [eventToDelete, setEventToDelete] = useState(null);
@@ -67,16 +68,72 @@ const AllEvents = () => {
     // Filter states
     const [searchTerm, setSearchTerm] = useState("");
     const [filterMonth, setFilterMonth] = useState("");
-    const [filterYear, setFilterYear] = useState("");
     const [eventTypeFilter, setEventTypeFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState("all");
 
     // Menu states for each event
     const [anchorEls, setAnchorEls] = useState({});
 
+    const [statusUpdateData, setStatusUpdateData] = useState({ id: null, status: "", notes: "" });
+    const [openStatusDialog, setOpenStatusDialog] = useState(false);
+
+    const handleOpenCancelDialog = (event) => {
+        setStatusUpdateData({ id: event.id, status: "cancelled", notes: "" });
+        setOpenStatusDialog(true);
+        handleMenuClose(event.id);
+    };
+
+    const handleModeChange = (newMode) => {
+        if (newMode !== null) {
+            setViewMode(newMode);
+            setSearchParams({ mode: newMode }); // This updates the browser URL
+        }
+    };
+
+    useEffect(() => {
+        if (modeFromUrl !== viewMode) {
+            setViewMode(modeFromUrl);
+        }
+    }, [modeFromUrl]);
+
+    const handleUpdateStatus = async (eventId, newStatus) => {
+        try {
+            const response = await api.put('/core/event/status', {
+                id: eventId,
+                status: newStatus,
+                notes: "" // Draft/Published usually don't need notes
+            });
+
+            if (response.data.success) {
+                showSnackbar(`Event ${newStatus} successfully`);
+                fetchEvents();
+            }
+        } catch (err) {
+            showSnackbar(err.response?.data?.message || "Failed to update status", "error");
+        }
+    };
+
+    const submitStatusUpdate = async () => {
+        try {
+            const response = await api.put('/core/event/status', {
+                id: statusUpdateData.id,
+                status: statusUpdateData.status,
+                notes: statusUpdateData.notes
+            });
+
+            if (response.data.success) {
+                showSnackbar(`Event ${statusUpdateData.status} successfully`);
+                fetchEvents();
+                setOpenStatusDialog(false);
+            }
+        } catch (err) {
+            showSnackbar(err.response?.data?.message || "Failed to update status", "error");
+        }
+    };
+
     // Generate year and month options for filters
     const currentYear = new Date().getFullYear();
-    const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
+    const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
     const monthOptions = [
         { value: 1, label: 'January' },
         { value: 2, label: 'February' },
@@ -115,6 +172,15 @@ const AllEvents = () => {
         { value: "cancelled", label: "Cancelled", color: "error" }
     ];
 
+    const showSnackbar = (message, severity = "success") => {
+        setSnackbar({ open: true, message, severity });
+    };
+
+    const handleCloseSnackbar = (event, reason) => {
+        if (reason === 'clickaway') return;
+        setSnackbar(prev => ({ ...prev, open: false }));
+    };
+
     // Format time for display
     const formatTime = (dateString) => {
         try {
@@ -132,42 +198,31 @@ const AllEvents = () => {
     // Fetch events based on current view
     const fetchEvents = async () => {
         setLoading(true);
-        setError(null);
         try {
-            let response;
-            const params = {};
+            const params = {
+                year: filterYear, // Year is now always sent
+                type: eventTypeFilter !== "all" ? eventTypeFilter : undefined,
+                status: statusFilter !== "all" ? statusFilter : undefined
+            };
 
-            // Add filters if not "all"
-            if (eventTypeFilter !== "all") params.type = eventTypeFilter;
-            if (statusFilter !== "all") params.status = statusFilter;
-
-            if (viewMode === "upcoming") {
-                // Fetch upcoming events
-                response = isAdmin
-                    ? await api.get(`/core/event/getAllEventAdmin`, { params })
-                    : await api.get(`/core/event/getAllEventPublic`, { params });
-            } else {
-                // Fetch archive events
-                response = isAdmin
-                    ? await api.get(`/core/event/getAllPostEventAdmin`, { params })
-                    : await api.get(`/core/event/getAllPostEventPublic`, { params });
-            }
+            const endpoint = `/core/event/${viewMode === 'upcoming' ? 'upcoming' : viewMode === 'draft' ? 'drafts' : 'past'}`;
+            const response = await api.get(endpoint, { params });
 
             if (response.data.success) {
-                // API returns { success, data: { events: [], count } }
                 setEvents(response.data.data?.events || []);
-            } else {
-                setError(response.data.message || 'Failed to load events');
             }
         } catch (err) {
-            setError(err.response?.data?.message || err.message || 'An error occurred');
-            console.error('Error fetching events:', err);
+            showSnackbar("Failed to load events", "error");
         } finally {
             setLoading(false);
         }
     };
 
-    // Filter and sort events (client-side filtering for month/year)
+    useEffect(() => {
+        fetchEvents();
+    }, [viewMode, statusFilter, eventTypeFilter, filterMonth, filterYear]);
+
+    // Filter events (client-side filtering for search only)
     const getFilteredEvents = () => {
         let filtered = events;
 
@@ -177,30 +232,6 @@ const AllEvents = () => {
                 return event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (event.location && event.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
                     (event.description && event.description.toLowerCase().includes(searchTerm.toLowerCase()));
-            });
-        }
-
-        // Apply month filter
-        if (filterMonth) {
-            filtered = filtered.filter(event => {
-                try {
-                    const eventDate = new Date(event.start_time);
-                    return eventDate.getMonth() + 1 === parseInt(filterMonth);
-                } catch (e) {
-                    return false;
-                }
-            });
-        }
-
-        // Apply year filter
-        if (filterYear) {
-            filtered = filtered.filter(event => {
-                try {
-                    const eventDate = new Date(event.start_time);
-                    return eventDate.getFullYear() === parseInt(filterYear);
-                } catch (e) {
-                    return false;
-                }
             });
         }
 
@@ -234,14 +265,14 @@ const AllEvents = () => {
 
     // Check if any filters are active
     const hasActiveFilters = () => {
-        return searchTerm || filterMonth || filterYear || eventTypeFilter !== "all" || statusFilter !== "all";
+        return searchTerm || filterYear || eventTypeFilter !== "all" || statusFilter !== "all";
     };
 
     // Clear all filters
     const clearFilters = () => {
         setSearchTerm("");
         setFilterMonth("");
-        setFilterYear("");
+        setFilterYear(currentYear);
         setEventTypeFilter("all");
         setStatusFilter("all");
     };
@@ -264,25 +295,13 @@ const AllEvents = () => {
     // Handle delete event
     const handleDeleteClick = (event) => {
         if (!isAdmin) {
-            setError('You do not have permission to delete events');
+            showSnackbar('You do not have permission to delete events', "error");
             handleMenuClose(event.id);
             return;
         }
 
         setEventToDelete(event);
         setOpenDeleteDialog(true);
-        handleMenuClose(event.id);
-    };
-
-    // Handle edit event
-    const handleEditClick = (event) => {
-        if (!isAdmin) {
-            setError('You do not have permission to edit events');
-            handleMenuClose(event.id);
-            return;
-        }
-
-        navigate(`/events/edit/${event.id}`);
         handleMenuClose(event.id);
     };
 
@@ -295,19 +314,16 @@ const AllEvents = () => {
     // Confirm delete
     const handleConfirmDelete = async () => {
         if (!eventToDelete) return;
-
         try {
-            const response = await api.delete(`/core/event/${eventToDelete.id}`);
-
+            const response = await api.delete(`/core/event/delete/${eventToDelete.id}`);
             if (response.data.success) {
-                setSuccessMessage("Event deleted successfully");
-                fetchEvents(); // Refresh list
+                showSnackbar("Event deleted successfully", "success");
+                fetchEvents();
             } else {
-                setError("Failed to delete event");
+                showSnackbar(response.data.message || "Failed to delete event", "error");
             }
         } catch (err) {
-            setError(err.response?.data?.message || err.message || "An error occurred");
-            console.error("Error deleting event:", err);
+            showSnackbar(err.response?.data?.message || "An error occurred", "error");
         } finally {
             setOpenDeleteDialog(false);
             setEventToDelete(null);
@@ -319,40 +335,51 @@ const AllEvents = () => {
         navigate("/events/create");
     };
 
-    // Clear messages
-    useEffect(() => {
-        if (successMessage) {
-            const timer = setTimeout(() => setSuccessMessage(""), 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [successMessage]);
-
-    // Fetch events when filters or view changes
-    useEffect(() => {
-        fetchEvents();
-    }, [viewMode, statusFilter, eventTypeFilter, isAdmin]);
-
     const groupedEvents = getGroupedEvents();
-    const activeFilterCount = [searchTerm, filterMonth, filterYear, eventTypeFilter !== "all", statusFilter !== "all"].filter(Boolean).length;
+    const activeFilterCount = [searchTerm, filterYear, eventTypeFilter !== "all", statusFilter !== "all"].filter(Boolean).length;
+
+    // Get view mode display name
+    const getViewModeDisplayName = () => {
+        switch (viewMode) {
+            case "upcoming": return "Upcoming Events";
+            case "draft": return "Draft Events";
+            case "past": return "Past Events";
+            default: return "Events";
+        }
+    };
+
+    // Check if draft view should be disabled for non-admin
+    const isDraftDisabled = () => {
+        return viewMode === "draft" && !isAdmin;
+    };
 
     return (
-        <Box py={3}>
+        <Box p={3}>
             {/* Controls */}
             <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", justifyContent: "space-between" }}>
                 {/* View Mode Toggle */}
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                        variant={viewMode === "upcoming" ? "contained" : "outlined"}
-                        onClick={() => setViewMode("upcoming")}
+                    <ToggleButtonGroup
+                        value={viewMode}
+                        exclusive
+                        onChange={(e, newMode) => handleModeChange(newMode)}
+                        size="small"
                     >
-                        Upcoming Events
-                    </Button>
-                    <Button
-                        variant={viewMode === "archive" ? "contained" : "outlined"}
-                        onClick={() => setViewMode("archive")}
-                    >
-                        Event Archive
-                    </Button>
+                        <ToggleButton value="upcoming" sx={{ px: 2, textTransform: 'none' }}>
+                            <UpcomingIcon sx={{ mr: 1, fontSize: 18 }} />
+                            Upcoming
+                        </ToggleButton>
+                        {isAdmin && (
+                            <ToggleButton value="draft" sx={{ px: 2, textTransform: 'none' }}>
+                                <DraftIcon sx={{ mr: 1, fontSize: 18 }} />
+                                Drafts
+                            </ToggleButton>
+                        )}
+                        <ToggleButton value="past" sx={{ px: 2, textTransform: 'none' }}>
+                            <PastIcon sx={{ mr: 1, fontSize: 18 }} />
+                            Past
+                        </ToggleButton>
+                    </ToggleButtonGroup>
                 </Box>
 
                 {/* Search and Filter */}
@@ -405,212 +432,69 @@ const AllEvents = () => {
                 </Box>
             </Box>
 
-            {/* Success Message */}
-            {successMessage && (
-                <Alert severity="success" sx={{ mb: 2 }}>
-                    {successMessage}
+            {/* Warning for non-admin trying to access drafts */}
+            {isDraftDisabled() && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    You do not have permission to view draft events.
                 </Alert>
             )}
 
-            {/* Error Alert */}
-            {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
-                </Alert>
-            )}
+            <Divider sx={{ mb: 2 }} />
 
-            {/* Active Filters Display */}
-            {hasActiveFilters() && (
-                <Alert
-                    severity="info"
-                    sx={{ mb: 2 }}
-                    action={
-                        <Button color="inherit" size="small" onClick={clearFilters}>
-                            Clear All
-                        </Button>
-                    }
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0, gap: 2 }}>
+                <IconButton
+                    onClick={() => setFilterYear(prev => Number(prev) - 1)}
+                    disabled={viewMode === 'upcoming' && Number(filterYear) <= currentYear}
                 >
-                    Filters active ({activeFilterCount}) - Showing {getFilteredEvents().length} events
-                </Alert>
-            )}
+                    <ChevronLeft fontSize="large" />
+                </IconButton>
+                <Typography variant="h5" sx={{ fontWeight: 'bold', letterSpacing: 2, minWidth: 80, textAlign: 'center' }}>
+                    {filterYear || currentYear}
+                </Typography>
+                <IconButton
+                    onClick={() => setFilterYear(prev => Number(prev) + 1)}
+                    // Disable "Next" if in Past view and year is current
+                    disabled={viewMode === 'past' && Number(filterYear) >= currentYear}
+                >
+                    <ChevronRight fontSize="large" />
+                </IconButton>
+            </Box>
 
             {/* Events List */}
             <Box sx={{ width: '100%' }}>
                 {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                        <CircularProgress />
-                    </Box>
-                ) : Object.keys(groupedEvents).length === 0 ? (
-                    <Box sx={{ p: 3, textAlign: 'center' }}>
-                        <Typography color="text.secondary">
-                            {hasActiveFilters()
-                                ? "No events match your filters"
-                                : `No ${viewMode === "upcoming" ? "upcoming" : "archive"} events found`
-                            }
-                        </Typography>
-                        {isAdmin && !hasActiveFilters() && (
-                            <Button
-                                variant="outlined"
-                                onClick={handleCreateEvent}
-                                sx={{ mt: 1 }}
-                            >
-                                Create Your First Event
-                            </Button>
-                        )}
-                        {hasActiveFilters() && (
-                            <Button
-                                variant="outlined"
-                                startIcon={<Clear />}
-                                onClick={clearFilters}
-                                sx={{ mt: 1 }}
-                            >
-                                Clear Filters
-                            </Button>
-                        )}
-                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>
+                ) : (isDraftDisabled() || Object.keys(groupedEvents).length === 0) ? (
+                    <Typography align="center" sx={{ p: 5 }}>
+                        {isDraftDisabled()
+                            ? "Draft events are only visible to administrators."
+                            : viewMode === "past" && !filterYear
+                                ? "Please select a year to load past events."
+                                : "No events found."}
+                    </Typography>
                 ) : (
                     <List sx={{ width: '100%' }}>
                         {Object.entries(groupedEvents).map(([monthYear, monthEvents]) => (
-                            <Box key={monthYear} sx={{ mb: 3, px: 2 }}>
-                                {/* Month Header */}
-                                <ListItem
-                                    sx={{
-                                        backgroundColor: 'background.main',
-                                        borderBottom: '1px solid',
-                                        borderColor: 'divider',
-                                        py: 1
-                                    }}
-                                >
-                                    <Typography variant="h6" color="primary.main" sx={{ fontWeight: 'bold' }}>
-                                        {monthYear}
-                                    </Typography>
-                                </ListItem>
-
-                                {/* Event Cards Grid */}
-                                <Grid container spacing={2} sx={{ mt: 1 }}>
-                                    {monthEvents.map((event) => (
-                                        <Grid key={event.id} item size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-
-                                            <Box
-                                                sx={{
-                                                    backgroundColor: 'background.paper',
-                                                    borderRadius: 2,
-                                                    overflow: 'hidden',
-                                                    boxShadow: 1,
-                                                    cursor: 'pointer',
-                                                    height: '100%',
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    '&:hover': { boxShadow: 3 }
-                                                }}
-                                            >
-                                                {/* Image with perfect 16:9 ratio */}
-                                                <Box
-                                                    sx={{
-                                                        width: '100%',
-                                                        aspectRatio: '16/9',
-                                                        backgroundColor: 'background.default',
-                                                        flexShrink: 0
-                                                    }}
-                                                >
-                                                    <Skeleton variant="rectangular" width="100%" height="100%" />
-                                                </Box>
-
-                                                {/* Card Content */}
-                                                <Box sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-
-                                                    {/* Name */}
-                                                    <Typography
-                                                        variant="subtitle1"
-                                                        fontWeight="600"
-                                                        sx={{
-                                                            display: '-webkit-box',
-                                                            WebkitLineClamp: 2,
-                                                            WebkitBoxOrient: 'vertical',
-                                                            overflow: 'hidden'
-                                                        }}
-                                                    >
-                                                        {event.name}
-                                                    </Typography>
-
-                                                    {/* Date & Time */}
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                                                        <Schedule sx={{ fontSize: 18 }} color="action" />
-                                                        <Typography variant="body2">
-                                                            {new Date(event.start_time).toLocaleDateString('en-US', {
-                                                                day: 'numeric',
-                                                                month: 'short'
-                                                            })}{' '}
-                                                            • {formatTime(event.start_time)}–{formatTime(event.end_time)}
-                                                        </Typography>
-                                                    </Box>
-
-                                                    {/* Location */}
-                                                    {event.location && (
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                                                            <LocationOn sx={{ fontSize: 18 }} color="action" />
-                                                            <Typography variant="body2">{event.location}</Typography>
-                                                        </Box>
-                                                    )}
-
-                                                    {/* Type & Status */}
-                                                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            {eventTypeOptions.find(t => t.value === event.type)?.label || event.type}
-                                                        </Typography>
-
-                                                        {isAdmin && (
-                                                            <Chip
-                                                                size="small"
-                                                                label={statusOptions.find(s => s.value === event.status)?.label}
-                                                                color={statusOptions.find(s => s.value === event.status)?.color}
-                                                                sx={{ height: 22, fontSize: '0.7rem', borderRadius: 1 }}
-                                                            />
-                                                        )}
-                                                    </Box>
-
-                                                    {/* Menu */}
-                                                    <Box sx={{ textAlign: 'right', mt: 1 }}>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={(e) => handleMenuOpen(event.id, e)}
-                                                        >
-                                                            <MoreVert fontSize="small" />
-                                                        </IconButton>
-
-                                                        <Menu
-                                                            anchorEl={anchorEls[event.id]}
-                                                            open={Boolean(anchorEls[event.id])}
-                                                            onClose={() => handleMenuClose(event.id)}
-                                                        >
-                                                            <MenuItem onClick={() => handleViewDetails(event)}>
-                                                                <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
-                                                                <ListItemText>View Details</ListItemText>
-                                                            </MenuItem>
-
-                                                            {isAdmin && (
-                                                                <>
-                                                                    <MenuItem onClick={() => handleEditClick(event)}>
-                                                                        <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-                                                                        <ListItemText>Edit Event</ListItemText>
-                                                                    </MenuItem>
-
-                                                                    <Divider />
-
-                                                                    <MenuItem onClick={() => handleDeleteClick(event)}>
-                                                                        <ListItemIcon><Delete fontSize="small" color="error" /></ListItemIcon>
-                                                                        <ListItemText sx={{ color: 'error.main' }}>Delete Event</ListItemText>
-                                                                    </MenuItem>
-                                                                </>
-                                                            )}
-                                                        </Menu>
-                                                    </Box>
-
-                                                </Box>
-                                            </Box>
-                                        </Grid>
-                                    ))}
-                                </Grid>
+                            <Box key={monthYear} sx={{ mb: 4 }}>
+                                <Typography variant="h6" color="primary.main" sx={{ fontWeight: 'bold', mb: 2 }}>
+                                    {monthYear}
+                                </Typography>
+                                <RowLayout
+                                    events={monthEvents}
+                                    isAdmin={isAdmin}
+                                    viewMode={viewMode}
+                                    formatTime={formatTime}
+                                    eventTypeOptions={eventTypeOptions}
+                                    statusOptions={statusOptions}
+                                    handleMenuOpen={handleMenuOpen}
+                                    anchorEls={anchorEls}
+                                    handleMenuClose={handleMenuClose}
+                                    handleViewDetails={handleViewDetails}
+                                    handleDeleteClick={handleDeleteClick}
+                                    handleOpenCancelDialog={handleOpenCancelDialog}
+                                    handleUpdateStatus={handleUpdateStatus}
+                                />
                             </Box>
                         ))}
                     </List>
@@ -620,7 +504,7 @@ const AllEvents = () => {
             {/* Filter Dialog */}
             <Dialog open={openFilterDialog} onClose={() => setOpenFilterDialog(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>
-                    Filter Events
+                    Filter {getViewModeDisplayName()}
                     {hasActiveFilters() && (
                         <Button
                             color="primary"
@@ -635,53 +519,13 @@ const AllEvents = () => {
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                         <FormControl fullWidth size="small">
-                            <InputLabel>Month</InputLabel>
-                            <Select
-                                value={filterMonth}
-                                label="Month"
-                                onChange={(e) => setFilterMonth(e.target.value)}
-                            >
-                                <MenuItem value="">All Months</MenuItem>
-                                {monthOptions.map(month => (
-                                    <MenuItem key={month.value} value={month.value}>
-                                        {month.label}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Year</InputLabel>
-                            <Select
-                                value={filterYear}
-                                label="Year"
-                                onChange={(e) => setFilterYear(e.target.value)}
-                            >
-                                <MenuItem value="">All Years</MenuItem>
-                                {yearOptions.map(year => (
-                                    <MenuItem key={year} value={year}>
-                                        {year}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
-                        <FormControl fullWidth size="small">
                             <InputLabel>Event Type</InputLabel>
-                            <Select
-                                value={eventTypeFilter}
-                                label="Event Type"
-                                onChange={(e) => setEventTypeFilter(e.target.value)}
-                            >
-                                {eventTypeOptions.map(option => (
-                                    <MenuItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </MenuItem>
-                                ))}
+                            <Select value={eventTypeFilter} label="Event Type" onChange={(e) => setEventTypeFilter(e.target.value)}>
+                                {eventTypeOptions.map(opt => <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>)}
                             </Select>
                         </FormControl>
 
-                        {isAdmin && (
+                        {isAdmin && viewMode !== "draft" && (
                             <FormControl fullWidth size="small">
                                 <InputLabel>Status</InputLabel>
                                 <Select
@@ -697,12 +541,6 @@ const AllEvents = () => {
                                 </Select>
                             </FormControl>
                         )}
-
-                        {hasActiveFilters() && (
-                            <Alert severity="info">
-                                {activeFilterCount} filter(s) active - Showing {getFilteredEvents().length} events
-                            </Alert>
-                        )}
                     </Box>
                 </DialogContent>
                 <DialogActions>
@@ -711,6 +549,15 @@ const AllEvents = () => {
                     </Button>
                     <Button onClick={clearFilters} color="inherit">
                         Clear Filters
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            setOpenFilterDialog(false);
+                            fetchEvents();
+                        }}
+                        variant="contained"
+                    >
+                        Apply Filters
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -740,6 +587,56 @@ const AllEvents = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Status Update Dialog */}
+            <Dialog open={openStatusDialog} onClose={() => setOpenStatusDialog(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>
+                    {statusUpdateData.status === 'cancelled' ? 'Cancel Event' : 'Update Status'}
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body1" sx={{ mb: 2 }}>
+                        {statusUpdateData.status === 'cancelled'
+                            ? "Are you sure you want to cancel this event? This will notify registered users."
+                            : `Change event status to ${statusUpdateData.status}?`}
+                    </Typography>
+                    {statusUpdateData.status === 'cancelled' && (
+                        <TextField
+                            fullWidth
+                            label="Cancellation Reason (Optional)"
+                            multiline
+                            rows={3}
+                            value={statusUpdateData.notes}
+                            onChange={(e) => setStatusUpdateData(prev => ({ ...prev, notes: e.target.value }))}
+                            placeholder="e.g., Venue unavailable, weather conditions..."
+                        />
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenStatusDialog(false)}>Go Back</Button>
+                    <Button
+                        onClick={submitStatusUpdate}
+                        variant="contained"
+                        color={statusUpdateData.status === 'cancelled' ? "error" : "primary"}
+                    >
+                        Confirm {statusUpdateData.status}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={3000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={handleCloseSnackbar}
+                    severity={snackbar.severity}
+                    sx={{ width: '100%', boxShadow: 3 }}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 };

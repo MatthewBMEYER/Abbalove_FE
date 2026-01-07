@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
     Box,
     Typography,
@@ -21,7 +21,8 @@ import {
     FormControl,
     InputLabel,
     Select,
-    MenuItem
+    MenuItem,
+    TextField
 } from "@mui/material";
 import {
     Close,
@@ -41,97 +42,140 @@ const MultimediaTab = ({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [teamMembers, setTeamMembers] = useState([]);
-    const [techTeam, setTechTeam] = useState(() => {
+
+    // Initialize tech team from assignedMembers
+    const initialTechTeam = useMemo(() => {
         if (!assignedMembers || assignedMembers.length === 0) return [];
-        return assignedMembers;
-    });
-    const [drawerOpen, setDrawerOpen] = useState(false);
-    const [tempSelection, setTempSelection] = useState([]);
-    const [techRoles, setTechRoles] = useState(() => {
+        return assignedMembers.filter(member =>
+            member.role_in_event === 'tech'
+        );
+    }, [assignedMembers]);
+
+    const initialTechRoles = useMemo(() => {
         const roles = {};
         if (assignedMembers && assignedMembers.length > 0) {
             assignedMembers.forEach(member => {
-                roles[member.user_id] = member.tech_roles || [];
+                if (member.role_in_event === 'tech') {
+                    // Store the selected role in the details field
+                    roles[member.user_id] = member.details || '';
+                }
             });
         }
         return roles;
-    });
+    }, [assignedMembers]);
 
-    // Tech role options
+    const [techTeam, setTechTeam] = useState(initialTechTeam);
+    const [techRoles, setTechRoles] = useState(initialTechRoles);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [tempSelection, setTempSelection] = useState([]);
+
+    // Tech role options for the details dropdown
     const roleOptions = [
-        { value: 'audio', label: 'Audio Engineer' },
-        { value: 'video', label: 'Video Operator' },
-        { value: 'projection', label: 'Projection/Lyrics' },
-        { value: 'lighting', label: 'Lighting Operator' },
-        { value: 'streaming', label: 'Live Streaming' },
-        { value: 'stage_tech', label: 'Stage Technician' }
+        { value: 'Audio Engineer', label: 'Audio Engineer' },
+        { value: 'Video Operator', label: 'Video Operator' },
+        { value: 'Projection/Lyrics', label: 'Projection/Lyrics' },
+        { value: 'Lighting Operator', label: 'Lighting Operator' },
+        { value: 'Live Streaming', label: 'Live Streaming' },
+        { value: 'Stage Technician', label: 'Stage Technician' },
+        { value: 'Other', label: 'Other' }
     ];
 
-    // Use ref to track previous values
-    const prevTechTeamRef = useRef([]);
+    // Track previous values to detect changes
+    const prevTechTeamRef = useRef(initialTechTeam);
+    const prevTechRolesRef = useRef(initialTechRoles);
     const isInitialMount = useRef(true);
 
-    // Initialize refs on mount
+    // Reset state when mode changes or assignedMembers changes
     useEffect(() => {
-        prevTechTeamRef.current = techTeam;
-    }, []);
+        setTechTeam(initialTechTeam);
+        setTechRoles(initialTechRoles);
+        prevTechTeamRef.current = initialTechTeam;
+        prevTechRolesRef.current = initialTechRoles;
+    }, [initialTechTeam, initialTechRoles, isEditMode, isViewMode]);
 
     // Fetch team members
-    useEffect(() => {
-        const fetchTeamMembers = async () => {
-            if (!team?.id) return;
+    const fetchTeamMembers = async () => {
+        if (!team?.id) return;
 
-            setLoading(true);
-            setError(null);
-            try {
-                const response = await api.post('/team/getMembers', { teamId: team.id });
-                if (response.data.success) {
-                    setTeamMembers(response.data.data);
-                } else {
-                    throw new Error('Failed to fetch team members');
-                }
-            } catch (err) {
-                console.error('Error fetching team members:', err);
-                setError(err.response?.data?.message || err.message || 'Failed to load team members');
-            } finally {
-                setLoading(false);
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await api.post('/team/getMembers', { teamId: team.id });
+            if (response.data.success) {
+                setTeamMembers(response.data.data);
+            } else {
+                throw new Error('Failed to fetch team members');
             }
-        };
+        } catch (err) {
+            console.error('Error fetching team members:', err);
+            setError(err.response?.data?.message || err.message || 'Failed to load team members');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        fetchTeamMembers();
-    }, [team?.id]);
+    const handleUpdate = useCallback((updatedTeam) => {
+        onUpdate(updatedTeam);
+    }, [onUpdate]);
 
-    // Update parent only when there are actual changes
     useEffect(() => {
         if (isInitialMount.current) {
             isInitialMount.current = false;
             return;
         }
 
+        // Compare current team with previous team
         const currentTeamIds = techTeam.map(t => t.user_id).sort();
         const prevTeamIds = prevTechTeamRef.current.map(t => t.user_id).sort();
-
         const hasTeamChanged = JSON.stringify(currentTeamIds) !== JSON.stringify(prevTeamIds);
 
         // Check if roles changed for existing members
-        const hasRolesChanged = techTeam.some((member, index) => {
-            const prevMember = prevTechTeamRef.current[index];
-            return prevMember && JSON.stringify(techRoles[member.user_id]) !== JSON.stringify(prevMember.tech_roles);
-        });
-
-        if (hasTeamChanged || hasRolesChanged) {
-            const membersWithRoles = techTeam.map(member => ({
-                ...member,
-                tech_roles: techRoles[member.user_id] || []
-            }));
-
-            onUpdate(membersWithRoles);
-            prevTechTeamRef.current = [...techTeam];
+        let hasRolesChanged = false;
+        if (!hasTeamChanged) {
+            for (const member of techTeam) {
+                const currentRole = techRoles[member.user_id] || '';
+                const prevRole = prevTechRolesRef.current[member.user_id] || '';
+                if (currentRole !== prevRole) {
+                    hasRolesChanged = true;
+                    break;
+                }
+            }
         }
-    }, [techTeam, techRoles, onUpdate]);
+
+        // Also check if any member was removed (their roles are gone)
+        if (!hasRolesChanged && !hasTeamChanged) {
+            const currentUserIds = Object.keys(techRoles);
+            const prevUserIds = Object.keys(prevTechRolesRef.current);
+            if (JSON.stringify(currentUserIds.sort()) !== JSON.stringify(prevUserIds.sort())) {
+                hasRolesChanged = true;
+            }
+        }
+
+        // Only update parent if there are changes
+        if (hasTeamChanged || hasRolesChanged) {
+            const membersWithRoles = techTeam.map(member => {
+                const originalMember = teamMembers.find(m => m.user_id === member.user_id) || member;
+                const selectedRole = techRoles[member.user_id] || '';
+
+                return {
+                    ...originalMember,
+                    role_in_event: 'tech', // Fixed role
+                    details: selectedRole // Role selection goes in details field
+                };
+            });
+
+            // Update refs before calling parent update
+            prevTechTeamRef.current = [...techTeam];
+            prevTechRolesRef.current = { ...techRoles };
+
+            console.log('Updating tech team:', membersWithRoles);
+            handleUpdate(membersWithRoles);
+        }
+    }, [techTeam, techRoles, handleUpdate, teamMembers]);
 
     // Open drawer for selection
     const openSelectionDrawer = useCallback(() => {
+        fetchTeamMembers();
         if (!isEditMode) return;
 
         setTempSelection(techTeam.map(member => member.user_id));
@@ -152,8 +196,16 @@ const MultimediaTab = ({
 
         const newRoles = { ...techRoles };
         selectedMembers.forEach(member => {
+            // Initialize with empty string if not exists
             if (!newRoles[member.user_id]) {
-                newRoles[member.user_id] = [];
+                newRoles[member.user_id] = '';
+            }
+        });
+
+        // Clean up roles for members who are no longer selected
+        Object.keys(newRoles).forEach(userId => {
+            if (!selectedMembers.find(m => m.user_id === userId)) {
+                delete newRoles[userId];
             }
         });
 
@@ -190,11 +242,11 @@ const MultimediaTab = ({
         });
     }, []);
 
-    // Update tech roles for a member
-    const handleRoleChange = useCallback((userId, roles) => {
+    // Update tech role for a member (stores in details)
+    const handleRoleChange = useCallback((userId, role) => {
         setTechRoles(prev => ({
             ...prev,
-            [userId]: roles
+            [userId]: role
         }));
     }, []);
 
@@ -335,53 +387,47 @@ const MultimediaTab = ({
                                                 </ListItemIcon>
 
                                                 {/* Username */}
-                                                <Typography variant="subtitle1" fontWeight="medium" noWrap sx={{ width: '100%' }}>
+                                                <Typography variant="subtitle1" fontWeight="medium" noWrap sx={{ width: '100%', minWidth: 150 }}>
                                                     {member.name}
                                                 </Typography>
 
-                                                {/* Role Selection */}
-                                                <FormControl fullWidth size="small">
-                                                    <InputLabel>Tech Roles</InputLabel>
-                                                    {isEditMode ? (
+                                                {/* Role Selection Dropdown */}
+                                                {isEditMode ? (
+                                                    <FormControl fullWidth size="small">
+                                                        <InputLabel id={`tech-role-label-${member.user_id}`}>Tech Role</InputLabel>
                                                         <Select
-                                                            multiple
-                                                            value={techRoles[member.user_id] || []}
+                                                            value={techRoles[member.user_id] || ''}
                                                             onChange={(e) => handleRoleChange(member.user_id, e.target.value)}
-                                                            label="Tech Roles"
-                                                            renderValue={(selected) => (
-                                                                <Typography variant="body2">
-                                                                    {selected.map(value => roleOptions.find(r => r.value === value)?.label || value).join(', ')}
-                                                                </Typography>
-                                                            )}
+                                                            labelId={`tech-role-label-${member.user_id}`}
+                                                            label="Tech Role"
                                                         >
+                                                            <MenuItem value="">
+                                                                <em>Select a tech role...</em>
+                                                            </MenuItem>
                                                             {roleOptions.map((role) => (
                                                                 <MenuItem key={role.value} value={role.value}>
                                                                     {role.label}
                                                                 </MenuItem>
                                                             ))}
                                                         </Select>
-                                                    ) : (
-                                                        <Paper
-                                                            variant="outlined"
-                                                            sx={{
-                                                                p: 1.5,
-                                                                backgroundColor: 'background.default',
-                                                                minHeight: 40,
-                                                                display: 'flex',
-                                                                alignItems: 'center'
-                                                            }}
-                                                        >
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {techRoles[member.user_id]?.length > 0
-                                                                    ? techRoles[member.user_id].map(value =>
-                                                                        roleOptions.find(r => r.value === value)?.label || value
-                                                                    ).join(', ')
-                                                                    : 'No roles assigned'
-                                                                }
-                                                            </Typography>
-                                                        </Paper>
-                                                    )}
-                                                </FormControl>
+                                                    </FormControl>
+                                                ) : (
+                                                    <Paper
+                                                        variant="outlined"
+                                                        sx={{
+                                                            p: 1.5,
+                                                            flex: 1,
+                                                            backgroundColor: 'background.default',
+                                                            minHeight: 40,
+                                                            display: 'flex',
+                                                            alignItems: 'center'
+                                                        }}
+                                                    >
+                                                        <Typography variant="body2" color="text.secondary">
+                                                            {techRoles[member.user_id] || 'No role assigned'}
+                                                        </Typography>
+                                                    </Paper>
+                                                )}
 
                                                 {/* Remove Button - Only in edit mode */}
                                                 {isEditMode && (

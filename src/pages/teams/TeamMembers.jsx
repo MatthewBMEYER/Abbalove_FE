@@ -12,8 +12,14 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useEffect, useState } from 'react';
 import api from '../../api';
 import { useNavigate } from 'react-router-dom';
+import { useUserStore } from '../../store/userStore'
 
 export default function TeamMembers({ teamId }) {
+
+    const { roleName } = useUserStore()
+    const isAdmin = roleName === 'admin';
+
+
     const [members, setMembers] = useState([]);
     const [filtered, setFiltered] = useState([]);
     const [search, setSearch] = useState('');
@@ -245,7 +251,7 @@ export default function TeamMembers({ teamId }) {
                     onChange={(e) => setSearch(e.target.value)}
                     fullWidth
                 />
-                <Button
+                {isAdmin && (<Button
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={handleAddClick}
@@ -256,7 +262,7 @@ export default function TeamMembers({ teamId }) {
                     }}
                 >
                     Add
-                </Button>
+                </Button>)}
             </Box>
 
             <TableContainer component={Paper} elevation={0}>
